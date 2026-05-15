@@ -637,7 +637,8 @@ function renderToday() {
 
   const dayIdx = Math.floor(Date.now() / 86400000) % CONCEPTS.length;
   const c = CONCEPTS[dayIdx];
-  const teaserBody = c.body.length > 180 ? c.body.substring(0, 180) + '…' : c.body;
+  const firstPara = (c.body.split('\n\n')[0] || c.body);
+  const teaserBody = firstPara.length > 200 ? firstPara.substring(0, 200) + '…' : firstPara;
   document.getElementById('t_concept').innerHTML = `
     <div class="concept-teaser" onclick="switchTab('edu')">
       <div class="ct-day">Gün ${dayIdx + 1} · ${c.tag}</div>
@@ -1672,36 +1673,95 @@ function saveSettings() {
 
 // ============ EDUCATION ============
 const CONCEPTS = [
-  { t: 'Yarın yükseleni sabah seçemezsin', tag: 'Davranış', body: 'Piyasanın temel bilmecesi: bilgi sana ulaştığında zaten fiyatlanmıştır. PhD analistlerle dolu fonların çözemediği problemi sezgi ile çözmeyi beklemek matematiksel olarak negatif beklenen değer üretir. Yatırımın asıl edge\'i bilgide değil, zamanda ve disiplindedir.' },
-  { t: 'Compounding — bileşik etkisi', tag: 'Matematik', body: '%10 yıllık getiri 7 yılda parayı ikiye, 24 yılda 10 kat\'a çıkarır. Compounding\'in en güçlü yanı son yıllarda etkisini göstermesidir. Aynı sebepten, küçük kayıplar bileşik şekilde büyür — %50 kayıp telafi etmek için %100 kazanç gerekir.' },
-  { t: 'Recency bias — yakın geçmiş yanılgısı', tag: 'Davranış', body: 'İnsan zihni son 1-2 yılı geleceğe yansıtır. 2020-2021\'de Bitcoin %500 yükselince herkes kripto aldı; 2022\'de %70 düştü. Bir yatırımcı için en tehlikeli soru: "Geçen yıl ne kazandı?". Doğru soru: "Bu sınıfın 30 yıllık ortalaması ve dağılımı ne?"' },
-  { t: 'Diversifikasyon', tag: 'Risk', body: 'Tek bir hisseye %100, tüm yumurtaları tek sepete koymak demek. Akademik konsensus: 15-20 hissenin üzerinde idiosyncratic riskin büyük kısmı yok olur. Ama daha basit yol: endeks fonu — 100 hisseyi bir kalemde alırsın, ücret çok düşük.' },
-  { t: 'DCA — Dollar Cost Averaging', tag: 'Strateji', body: 'Düzenli aralıklarla sabit tutar yatırmak. Düşüş döneminde aynı parayla daha çok pay alırsın, yükselişte daha az. Sonuçta zaman içinde ortalama alış maliyetin piyasanın altında kalır. Timing\'in yenildiği ender stratejilerden biri.' },
-  { t: 'Mean reversion — ortalamaya dönüş', tag: 'Strateji', body: 'Aşırı yükselen veya düşen fiyatlar uzun vadede tarihsel ortalamalarına döner. Günlük "top gainer" ertesi gün ortalamadan kötü performans gösterir — akademik literatürde belgelenmiş. Bu yüzden "yükseleni al" stratejisi negatif EV üretir.' },
-  { t: 'P/E oranı — fiyat/kazanç', tag: 'Değerleme', body: 'Şirketin hisse fiyatı, hisse başına yıllık kârın kaç katı? Düşük PE = ucuz (genelde), yüksek PE = pahalı veya yüksek büyüme beklentisi. Nasdaq 100 medyan PE: 24. Şu anki: 38. Tarihsel olarak yüksek PE sonrası 10 yıllık getiri düşük gelmiş.' },
-  { t: 'Yield curve — verim eğrisi', tag: 'Makro', body: 'Devlet tahvili faizinin vade boyunca dağılımı. Normalde uzun vade > kısa vade. Tersine döndüğünde (inversion) tarihsel olarak resesyonu önceler — son 50 yılda 9/9 sinyal vermiş. Tahvil piyasası hisse piyasasından akıllıdır.' },
-  { t: 'VIX — korku endeksi', tag: 'Makro', body: 'S&P 500 opsiyon volatilitesi. Normal piyasa: 12-20, panik: 30+, kriz: 50+. VIX zirve yaptığı günler tarihsel olarak alım fırsatı olmuştur. Ama VIX düşükken — yani herkes rahatken — yüksek risk birikir.' },
-  { t: 'Drawdown — geri çekilme', tag: 'Risk', body: 'Bir yatırımın zirveden dibe kayıp yüzdesi. Maks drawdown stratejinin gerçek riskini gösterir. Yıllık %15 getiri kulağa hoş gelir ama %50 drawdown\'la gelmişse psikolojik olarak çok az insan kalır. Önemli olan ortalama değil, kötü senaryonun şiddeti.' },
-  { t: 'Sharpe ratio', tag: 'Matematik', body: '(Getiri − risksiz faiz) / volatilite. Bir birim risk başına ne kadar getiri. Sharpe 1: iyi, 2: çok iyi, 3+: olağanüstü (genelde data-mining). Sadece getiriye değil, risk-ayarlı getiriye bakmak profesyonel yaklaşım.' },
-  { t: 'Kelly Criterion — pozisyon büyüklüğü', tag: 'Matematik', body: 'Optimal bahis büyüklüğü = (kazanma olasılığı × ödül − kayıp olasılığı × kayıp) / ödül. Kelly\'nin yarısı veya çeyreği kullanmak (fractional Kelly) daha güvenli — full Kelly varyans yüksek olunca iflasa götürür.' },
-  { t: 'Black Swan — siyah kuğu', tag: 'Risk', body: 'Önceden öngörülemeyen, etkisi büyük olay. 2008 mortgage, 2020 COVID, 1987 Black Monday. Modelin "imkansız" dediği şey 10 yılda bir gerçekleşir. Bu yüzden portföyün hayatta kalması, getirisinden önce gelir.' },
-  { t: 'Carry trade', tag: 'Makro', body: 'Düşük faizli para birinden borçlanıp yüksek faizliye yatırmak. Yıllarca para basar, sonra kur döner ve bir gecede yıllık getiriyi siler. TL\'nin yıllarca carry hedefi olması ve sonra kriz patlaması klasik örnek.' },
-  { t: 'PMI — Satın Alma Yöneticileri Endeksi', tag: 'Makro', body: 'Şirketlerin gelecek üretim/sipariş beklentilerini ölçer. 50 üstü genişleme, 50 altı daralma. Tarihsel olarak resesyonu 3-6 ay önceler. Türkiye PMI 50 altına düşünce TÜFE\'den önce ekonomik yavaşlamayı görmüş olursun.' },
-  { t: 'Marjinal alıcı kavramı', tag: 'Değerleme', body: 'Bir varlığın fiyatını "en son alıcı" belirler — ortalama alıcı değil. Bu yüzden piyasa duygusal olabilir: çok az kişinin satması fiyatı düşürür. Liquid hisseler bile aslında küçük marjinal hareketle fiyatlanır.' },
-  { t: 'Survivorship bias — hayatta kalan yanılgısı', tag: 'Davranış', body: '"Şu fon 20 yıldır endeksi yenmiş" cümlesi yanıltıcı: 20 yıl önce başlayan 100 fondan kaybedenler kapanmıştır, sadece kazanan sayılır. Tüm "milyoner trader" hikayeleri aynı sorunla malul — başarısızlar konuşmaz.' },
-  { t: 'Hisseyi neden tutarsın?', tag: 'Strateji', body: 'Cevap "yükselsin diye" ise stratejin yok. Profesyonel yaklaşım: değer tezi (şirket X TL değer, fiyat Y\'de, fark Z), kalitite tezi (sektör/yönetim/marka), makro tezi (sektör rüzgar alıyor). Tez yoksa çıkış da yok.' },
-  { t: 'Stop-loss disiplini', tag: 'Risk', body: 'Pozisyonu açmadan önce nerede yanlış olduğunu kabul edeceğini belirle. %5? %10? Tez kırıldığı zaman? Bu çizgi geçilince — duygu girmesin — kapat. Profesyonel trader\'ları amatörlerden ayıran en büyük tek davranış.' },
-  { t: 'Asimetrik bahis', tag: 'Strateji', body: 'Riskin küçük, ödülün büyük olduğu pozisyonlar. %10 risk, %50 potansiyel. Win rate %40 bile olsa pozitif EV. Buffett ve Munger\'in stratejisinin matematiği bu — yıllarca beklemek, sonra fırsat geldiğinde büyük girmek.' },
-  { t: 'Korelasyon ≠ nedensellik', tag: 'Davranış', body: '"X yükseldiğinde Y de yükseldi" iki şeyin nedensel bağlantılı olduğunu göstermez. Üçüncü bir değişken (genelde makro: faiz, dolar) ikisini birden hareket ettiriyor olabilir. Tarihsel korelasyona dayalı stratejiler kriz zamanı çöker.' },
-  { t: 'Faiz — paranın zaman değeri', tag: 'Makro', body: 'Faiz yükseldiğinde hisse değerlemeleri düşer (gelecek nakit akışlarının bugünkü değeri azalır). Faiz düşerken hisseler yükselir — özellikle büyüme şirketleri. 2022 düşüşünün ana sebebi Fed\'in faizi sıfırdan %5\'e çıkarması.' },
-  { t: 'Enflasyon ve reel getiri', tag: 'Makro', body: 'Nominal %50 getiri, enflasyon %50 ise reel getiri %0. Türkiye gibi yüksek enflasyon ülkelerinde nominal rakamlar yanıltıcı. Servet ölçmenin doğru yolu satın alma gücü — TL faizinin kulağa hoş gelen %50\'si genelde reel olarak %5-10.' },
-  { t: 'Volatilite ≠ risk', tag: 'Risk', body: 'Akademik finans volatiliteyi risk sayar ama uzun vadeli yatırımcı için fiyat dalgalanması değil, kalıcı kayıp risktir. Buffett: "Volatilite bizim için fırsat, risk değil." Geçici %30 düşüş sorun değil — şirket iflas ediyorsa sorun.' },
-  { t: 'Endeks fonu — pasif yatırım', tag: 'Strateji', body: 'Piyasanın tamamını sahip olma. Çoğu aktif fon endeksi yenemez (15 yıl: %85 kaybeder). Düşük ücret, otomatik diversifikasyon, vergi etkin. S&P 500 endeks fonu Buffett\'in eşine bıraktığı portföyün %90\'ı.' },
-  { t: 'TER — yıllık fon ücreti', tag: 'Değerleme', body: 'Total Expense Ratio. %0.5 fon ile %2 fon arasında 30 yılda bileşik fark portföyün %30\'una yakın. Endeks fonu seçerken en kritik kriter: en düşük TER. TEFAS\'ta filtreleyebilirsin.' },
-  { t: 'Rebalancing — denkleme', tag: 'Strateji', body: 'Hedef dağılım %60 hisse %40 tahvil. Hisse %80\'e çıkınca sat, tahvile geç. Bu mekanik kural duygudan bağımsız "yükselende sat, düşende al" yapar. Yıllık 1 kez yeter — sık rebalancing maliyet üretir.' },
-  { t: 'Margin / kaldıraç', tag: 'Risk', body: 'Borç para ile yatırım. Yukarı çıkarken kazancı katlar, aşağı düşerken zararı katlar VE pozisyonu zorla kapattırır (margin call). Pozitif EV stratejiniz olsa bile kaldıraç sizi yolun ortasında iflas ettirebilir. "Long Term Capital" hikayesi.' },
-  { t: 'Insider buying — içeriden alım', tag: 'Strateji', body: 'Şirket CEO/CFO\'sunun kendi hissesinden alması güçlü sinyal — kendi parasıyla bahis koyuyor. SEC dosyalarından izlenebilir (Form 4). Akademik çalışmalar küçük ama anlamlı outperformance gösteriyor. Satış aynı kadar anlamlı değil (vergi, çeşitlendirme).' },
-  { t: 'Buy-and-hold disiplini', tag: 'Strateji', body: 'En iyi 10 günü kaçırırsan 20 yıllık getirinin yarısı silinir. En iyi günler kötü günlerin etrafında yoğunlaşır — yani satıp girmek pratikte mümkün değil. "Time in the market beats timing the market." Sıkıcı ama matematiksel olarak kazanan strateji.' }
+  { t: 'Yarın yükseleni sabah seçemezsin', tag: 'Davranış',
+    body: 'Sabah açılışta "bugün hangi hisse yükselecek?" diye düşünüp hisse seçmek mümkün değil. Bir şirketle ilgili haber sana ulaştığında, dünya çapındaki binlerce profesyonel onu zaten okumuştur ve hisseyi alıp satmışlardır — fiyat o haberi içine sindirmiştir bile.\n\nŞöyle düşün: Bir maçta golün olduğunu gördükten sonra "gol olacak" diye bahis oynamak. Sen golü "biliyorsun" ama bahis kapanmıştır. Aynı şey: sen "yükselecek" dediğin haberi öğrendiğinde, fiyat zaten yükselmiştir.\n\nNiye önemli: Günlük al-sat yaparak zenginleşme fikrini kafandan atmak ilk adım. Onun yerine: zamanı (uzun vade) ve disiplini (düzenli alım) dostun yap.' },
+
+  { t: 'Compounding (bileşik etkisi) — paranın paraya doğurması', tag: 'Matematik',
+    body: 'Compounding = kazandığın paranın da kazanması. Yıllık %10 getirisi olan bir yatırım 7 yılda parayı ikiye, 24 yılda 10 kat\'a çıkarır.\n\nŞöyle düşün: Bir göletteki nilüfer çiçeği her gün ikiye katlanıyor olsa, gölet 30. günde tamamen dolar. Ama 29. günde gölet sadece yarısı doludur. Yani büyüme en sonda patlar. Yatırımda da öyle — ilk yıllar yavaş görünür, son yıllar uçar.\n\nTers tarafı da var: %50 kaybedersen, eski seviyeye dönmek için %100 kazanmak gerek (50\'den 100\'e gitmek %100 yükseliş). Bu yüzden kayıp etmemek, kazanmaktan daha önemli.\n\nNiye önemli: 20\'li yaşlarında küçük tutarlar yatırmak, 40\'larında büyük tutar yatırmaktan daha çok kazandırır. Erken başla.' },
+
+  { t: 'Recency bias — yakın geçmişi geleceğe yansıtma yanılgısı', tag: 'Davranış',
+    body: 'İnsan beyni son 1-2 yılı geleceğe doğru uzatma eğilimindedir. "Geçen yıl kazandıran şey bu yıl da kazandırır" diye düşünür.\n\nMesela: 2020-2021\'de Bitcoin %500 yükseldi → herkes "kripto altın gibi" diye aldı. 2022\'de %70 düştü. Aynı şey: 2024\'te NVDA yükselince herkes "AI hisseleri sonsuz yükselir" dedi.\n\nDoğru soru "geçen yıl ne kazandı?" değil, "bu yatırımın son 30 yıllık ortalama getirisi ve en kötü dönemi ne?". Bir varlık sınıfının tarihsel dağılımına bak, son birkaç yıla değil.\n\nNiye önemli: Geçen yıl popüler olan şey önümüzdeki yıl çok popüler olduğu için pahalı satın alacağın şeydir.' },
+
+  { t: 'Diversifikasyon — tüm yumurtaları tek sepete koyma', tag: 'Risk',
+    body: 'Tüm paranı tek hisseye koymak = tüm yumurtaları tek sepete koymak. Sepet düşerse hepsi kırılır.\n\nMesela: 2001\'de Türkiye\'deki yatırımcılar Enron benzeri büyük şirketleri "güvenli" sanıp portföylerini doldurmuştu. Şirket battı, herkes battı.\n\nDiversifikasyon = farklı sektör, farklı ülke, farklı varlık tipi (hisse + tahvil + altın). 15-20 farklı hisse aldığında, birinin batması portföyünün %5\'i olur — acı ama yıkıcı değil.\n\nDaha basit yol: endeks fonu. Tek bir fon alırsın, içinde 100 farklı şirket vardır (S&P 500, BIST 30). Otomatik diversifiye olursun, ücret çok düşük.\n\nNiye önemli: Hangi tek hisse batacağını öngöremezsin. O yüzden hiçbiri batsa da seni öldürmemesini sağla.' },
+
+  { t: 'DCA — Düzenli Sabit Tutar Yatırımı (Dollar Cost Averaging)', tag: 'Strateji',
+    body: 'Her ay (veya hafta) aynı tutarı yatırmak. Örnek: her ayın 1\'inde 5000 TL\'lik BIST 30 endeks fonu al.\n\nNiye işe yarar: Piyasa düşükken aynı 5000 TL ile daha çok pay alırsın, yüksekken daha az pay alırsın. Sonuçta ortalama maliyetin piyasa ortalamasının altında kalır.\n\nŞöyle düşün: Domates fiyatı bazen 10 TL/kg, bazen 30 TL/kg. Hep 100 TL\'lik alırsan, ucuzken 10 kg, pahalıyken 3 kg alırsın. Yıl sonunda ortalama kilonu en yüksekten almamış olursun.\n\nNiye önemli: "Piyasanın dibi nerede?" sorusunu cevaplamak zorunda kalmazsın. Otomatik alır, duygulardan etkilenmezsin. Timing\'i yenen ender stratejilerden biri.' },
+
+  { t: 'Mean reversion — uçlar ortalamaya döner', tag: 'Strateji',
+    body: 'Bir şey aşırı yükseldiyse veya aşırı düştüyse, uzun vadede tarihsel ortalamasına geri döner. Bu fiyatlamada da, ekonomide de geçerli.\n\nMesela: 2021\'de Türkiye konut fiyatları rekor kırdı. 2024\'te enflasyon hesabına göre reel olarak ortalamaya yaklaştı. Veya: Bir hisse 3 günde %50 yükseldiyse, 1 aylık vadede ortalama performansının altına dönme eğilimindedir.\n\nİlginç sonucu: "Günün en çok yükseleni"ni alma stratejisi, akademik çalışmalarda istatistiksel olarak kaybeder. Çünkü ertesi gün ortalama bir performans sergiler veya geri düşer.\n\nNiye önemli: "Bugün yükselen yarın da yükselir" sezgisi yanlış — kısa vadede tam tersi gerçekleşir.' },
+
+  { t: 'P/E (Fiyat/Kazanç) oranı — bir hisse pahalı mı ucuz mu?', tag: 'Değerleme',
+    body: 'P/E = Hisse fiyatı ÷ Şirketin bir hisseye düşen yıllık kârı. Hisseyi "kaç yıllık kâra satıldığı" şeklinde okunur.\n\nMesela: AAPL\'ın hisse fiyatı $200, bir hisseye düşen yıllık kâr $7. P/E = $200/$7 = 28.5. Yani Apple\'ı satın alırsan, mevcut kârla 28.5 yılda paranı çıkarırsın.\n\nDüşük P/E (10 altı) genelde "ucuz" demek (ama dikkat: ucuz olabilir veya şirket sorunlu olabilir). Yüksek P/E (30 üstü) "pahalı veya büyüme beklentisi yüksek" demek.\n\nŞu an: Nasdaq 100\'ün ortalama P/E\'si 38, tarihsel ortalaması 24. Yani şu an pahalı bir dönemde.\n\nNiye önemli: Tek başına P/E yetmez, sektör ortalamasıyla ve şirketin büyüme oranıyla karşılaştır. Ama pahalı bir piyasaya girerken bilerek girmek lazım.' },
+
+  { t: 'Yield curve (verim eğrisi) — tahvilin gizli sinyali', tag: 'Makro',
+    body: 'Devlet tahvili = devlete borç verme. Devlet bunun karşılığında faiz öder. Kısa vadeli (3 aylık) ve uzun vadeli (10 yıllık) tahvil arasında faiz farkı vardır.\n\nNormal durum: 10 yıllık faiz > 3 aylık faiz (uzun vade riski daha çok, karşılığı daha çok).\n\nTers dönmüş (inversion): 3 aylık faiz > 10 yıllık faiz. Bu garip durum genelde resesyon habercisidir. Son 50 yılda ABD\'de bu olduğu her seferde 6-18 ay içinde resesyon geldi (9/9 doğru).\n\nMesela: 2022 ortasında ABD verim eğrisi tersine döndü → 2023\'te tartışmalı şekilde resesyona girip çıkıldı.\n\nNiye önemli: Tahvil piyasası hisse piyasasından daha sakin ve "akıllı" düşünür. Bu sinyali fark edersen erken davranabilirsin.' },
+
+  { t: 'VIX — piyasanın korku endeksi', tag: 'Makro',
+    body: 'VIX, ABD\'deki S&P 500 hisselerine yazılan opsiyonların (gelecek için hedge eden sözleşmeler) fiyatından hesaplanır. Yatırımcılar gelecekte ne kadar dalgalanma bekliyor — bunu ölçer.\n\nNormal piyasa: VIX 12-20 arası. Herkes rahat.\nPanik: VIX 30+. İnsanlar korkuyor, "sigorta" almak için fazla ödüyor.\nKriz: VIX 50+. Mart 2020 COVID\'te 80\'i gördü.\n\nİlginç gerçek: VIX zirvesi tarihsel olarak alım fırsatıdır. Çünkü herkes korktuğunda fiyatlar dibe yapışmıştır. Tersi de doğru: VIX 12\'ye düştüğünde herkes rahattır, risk birikir.\n\nNiye önemli: "Herkes mutlu" zamanlarında dikkatli ol, "herkes panikte" zamanlarında fırsat ara. Buffett: "Başkaları korkarken aç gözlü, başkaları aç gözlüyken korkak ol."' },
+
+  { t: 'Drawdown — zirveden dibe kayıp', tag: 'Risk',
+    body: 'Drawdown = bir yatırımın zirve noktasından şu ana kadar yüzde kaç kaybettiği.\n\nMesela: Portföyün 100.000 TL\'ye çıktı, sonra 70.000 TL\'ye düştü. Drawdown = %30.\n\nNeden önemli: Yıllık ortalama getirileri kıyaslarken "yıllık %15 kazanıyor" cümlesi yanıltıcı olabilir. Eğer o yatırım yıl içinde %50 düşüp sonra toparladıysa, ortalamalar iyi görünür ama sen yaşamış olmaktan bezdirici hisseder.\n\nŞöyle düşün: Bir tepe yürüyüşü yapıyorsun ve raporda "ortalama yükseklik 1200m" yazıyor. Ama yolda 200m\'ye inip 1500m\'ye çıkıp 600m\'ye inmişsen, "ortalama" o tecrübeyi tarif etmez.\n\nNiye önemli: Max drawdown stratejinin gerçek riskini gösterir. %50 drawdown\'ı sindirebilecek misin? Yoksa dibinde panik satar mısın?' },
+
+  { t: 'Sharpe Oranı — risk başına ne kadar kazanıyorsun?', tag: 'Matematik',
+    body: 'Sharpe = (Getiri − Risksiz Faiz) ÷ Volatilite (fiyat dalgalanma derecesi).\n\nÇevirisi: "Aldığın her bir risk birimi başına ne kadar fazla getiri elde ediyorsun?"\n\nMesela: Yatırım A yıllık %20 kazandırıyor ama çok dalgalı. Yatırım B yıllık %12 kazandırıyor ama sakin. Sharpe oranlarına bakınca B daha iyi olabilir — daha az risk başına orantısal olarak daha çok getiri.\n\nDeğerlendirme: Sharpe 1: iyi. 2: çok iyi. 3+: olağanüstü (genelde gerçek olamayacak kadar iyi, dikkat).\n\nNiye önemli: Sadece "kaç kazandın"a değil, "kaç kazanmak için ne kadar acı çektin"e bak. Aynı getiriyi az dalgalanmayla almak, çok dalgalanmayla almaktan kat kat iyidir.' },
+
+  { t: 'Kelly Kriteri — ne kadarlık pozisyon almalısın?', tag: 'Matematik',
+    body: 'Şu soruya cevap: Kazanma şansın belli, kazancın belli, kaybın belli. Sermayenin yüzde kaçını riske atmalısın?\n\nFormül: Kelly% = (Kazanma oranı × Ödül − Kaybetme oranı × Kayıp) ÷ Ödül\n\nMesela: Kazanma şansın %60, kazanırsan +100 TL, kaybedersen -50 TL. Kelly = (%60 × 100 − %40 × 50) ÷ 100 = (60 − 20) ÷ 100 = %40. Yani sermayenin %40\'ını koymalısın.\n\nAma pratikte: Kelly\'nin yarısı (yarım Kelly) veya çeyreği (çeyrek Kelly) önerilir. Çünkü gerçek hayatta olasılıkları kesin bilemezsin, fazla agresif olmak iflasa götürür.\n\nNiye önemli: Çoğu küçük yatırımcı pozisyon büyüklüğünü duygusal seçer ("bu sefer iyi hissettim"). Matematiksel bir kural ödevi verir.' },
+
+  { t: 'Black Swan (Siyah Kuğu) — imkansız sanılan ama gerçekleşen', tag: 'Risk',
+    body: 'Black swan = öngörülemeyen, etkisi büyük, sonradan "aslında bekleniyordu" diye anlatılan olay.\n\nKlasik örnekler: 2008 mortgage krizi, 2020 COVID, 1987 Black Monday, 2022 Ukrayna işgali. Hepsi "olamaz" denirken oldu.\n\nNassim Taleb\'in tezi: İstatistiksel modeller "normal dağılım" varsayar (çoğu olay ortalamada, uçlar çok nadir). Ama gerçek hayatta uçlar düşünüldüğünden çok daha sık olur. Yatırımda model güzel, gerçeklik daha sert.\n\nŞöyle düşün: Bir nehir 100 yılda bir bu seviyeyi aşmaz" diye tasarlanan baraj 30 yılda iki kez taştı. Çünkü "100 yılda bir" hesabı yanlıştı.\n\nNiye önemli: Portföyü "çoğu zaman iyi" değil, "felakette hayatta kalır" diye kur. Tüm parayı tek bahse yatırma. Hayatta kalmak getiri etmenin ön koşulu.' },
+
+  { t: 'Carry trade — yüksek faizden kazanma oyunu', tag: 'Makro',
+    body: 'Carry trade = düşük faizli para birinden ucuz borçlanıp yüksek faizli para birinin tahviline yatırmak. Aradaki farkı cebine atmak.\n\nMesela: Japon yeninden %0.5 faizle borçlan, Türk lirası tahviline %40 faizle yatır. Aradaki %39.5 sana kalır... TL kendi değerini korursa.\n\nİşte tehlike: Türk lirası bir gecede %30 devalüe oldu mu, yıllık carry kazancın silinir. "Merdivenden çık, asansörle in" denir — yavaş kazanır, aniden kaybedersin.\n\nMesela: 2018 ortasında TL bir haftada %30 değer kaybetti. O zaman TL\'de carry yapan tüm yabancı yatırımcılar bir gecede yıllık kazançlarını kaybetti.\n\nNiye önemli: Yüksek faiz cazip görünür ama yan tarafta bekleyen kur riski var. Türkiye\'de uzun vade TL tahvili almak istiyorsan, faizin yüksekliği bedavadan değil — kur risk primi içeriyor.' },
+
+  { t: 'PMI — şirketler ne hissediyor?', tag: 'Makro',
+    body: 'PMI (Satın Alma Yöneticileri Endeksi). Her ay bir grup şirket yöneticisine "geçen aya göre durumunuz nasıl?" diye sorulur: yeni siparişler, üretim, istihdam, fiyatlar.\n\nÖlçek: 50 = sıfır değişim. 50 üstü = genişleme (her şey iyi). 50 altı = daralma (durgunluk).\n\nMesela: ABD PMI 53 → ekonomi büyüyor, hisse alım için iyi sinyal. PMI 48 → ekonomi yavaşlıyor, savunmacı sektörler (gıda, sağlık) tercih edilir, döngüsel sektörler (otomotiv, lüks) zayıflar.\n\nNiye önemli: PMI resesyonu tarihsel olarak 3-6 ay önceler. Ekonomi haberlerinde "büyüme yavaşladı" cümlesini duymadan önce PMI sana sinyal verir.\n\nŞöyle düşün: Geceleri arkadaşlarına "havanız nasıl?" diye sormak gibi. Çoğu "iyi" derse genelde iyidir, hep "kötü" derse aksanlığın geleceğini anlarsın.' },
+
+  { t: 'Marjinal alıcı — fiyatı kim belirler?', tag: 'Değerleme',
+    body: 'Bir hissenin fiyatını "şu anda en yüksek teklif veren alıcı" belirler — toplam hissedarların ortalama görüşü değil.\n\nMesela: Bir hisseyi 1 milyon kişi 100 TL\'ye tutuyor. Bir tanesi paniğe kapılıp 90 TL\'ye satıyor. Şimdi fiyat 90 TL — 999.999 kişi hâlâ "100 TL değer" diye düşünse bile.\n\nİşte piyasanın duygusal olmasının sebebi bu: az sayıda satıcı (veya alıcı) fiyatı hareket ettirir. Şirketin değeri değişmemiş olsa bile.\n\nŞöyle düşün: Bir mahallede 100 ev var. Bir komşu paniğe kapılıp evini %30 indirimle satarsa, diğer 99 evin "piyasa değeri" otomatik olarak %30 düşmüş gösterilir. Ama gerçek değerleri değişmedi.\n\nNiye önemli: Kısa vadeli fiyat hareketleri her zaman gerçek değer değişimi değil — sadece marjinal alıcı/satıcı duygusu olabilir. Bu yüzden uzun vadede sakin ol.' },
+
+  { t: 'Survivorship bias — sadece kazananları görme yanılgısı', tag: 'Davranış',
+    body: 'Bir başarı hikayesi duyduğunda, sana sadece başaranlar anlatılır — denedikten sonra batanlar konuşmaz.\n\nMesela: "Şu fon 20 yıldır piyasayı yenmiş" cümlesi yanıltıcı. 20 yıl önce 1000 fon başladıysa, %95\'i bu zamana kadar kapanmıştır (kötü performansı sebebiyle). Hayatta kalan %5\'in en iyisini gösteriyorsan, doğal olarak "20 yıldır piyasa yendi" diyebilirsin.\n\nAynı şey "Twitter\'da yatırım uzmanı" hesaplarda: 1000 kişi tahmin yapsa, ortalama %1\'i tesadüfen 10 yıl üst üste doğru çıkar. Hepsini "deha" sanırsın, başarısız 990\'ı tweetlemediği için göremezsin.\n\nİkinci Dünya Savaşı örneği: Geri dönen uçaklara bakıp "kanat uçlarına zırh ekleyelim" demek istemişler. Asıl ders: Geri dönen uçakların kanat uçları sağlam, gövdesi delik. Yani gövdeden vurulanlar geri dönemiyor — zırhı oraya eklemek lazım.\n\nNiye önemli: Başarı hikayelerine değil, ortalama sonuca bak. Çoğu trader kaybeder, sadece kaybedenler konuşmaz.' },
+
+  { t: 'Hisseyi neden tutarsın? — tez olmadan strateji olmaz', tag: 'Strateji',
+    body: 'Bir hisseyi alırken kendine sor: "Bunu neden alıyorum?" Cevap "yükselsin diye" ise strateji yok demektir.\n\nGerçek bir tez şu üç tipte olur:\n\n1. Değer tezi: "Şirket gerçek değerinden %30 ucuz fiyatlanıyor" (P/E, defter değeri analizi)\n2. Kalite tezi: "Bu sektörde lider, marka gücü var, yönetim iyi"\n3. Makro tezi: "Bu sektör 5 yıllık rüzgar alıyor" (AI, yeşil enerji, demografik trend)\n\nMesela: NVDA aldıysan tezin ne? "AI rüzgarı 5 yıl daha sürer, NVDA bu pazarın %80\'i" makro tez. Sonra bir gün GOOG kendi çipini geliştirip pazarın yarısını alırsa → tezin kırıldı, çıkış zamanı.\n\nNiye önemli: Tez varsa, "çıkış stratejin" de olur — tez kırıldığında sat. Tez yoksa, fiyat oynadıkça duygusal kararlar alırsın.' },
+
+  { t: 'Stop-loss disiplini — zararını ne zaman kabul edersin?', tag: 'Risk',
+    body: 'Pozisyonu açmadan ÖNCE şu soruyu cevapla: "Bu hisseyi hangi fiyatta veya hangi olayda yanlış kabul edip çıkarım?"\n\nMesela: NVDA\'yı $230\'dan aldın. Stop-loss\'u $200\'e koy. Fiyat $200\'e düşerse, duygu girmesin — sat. Veya: "Bu hissenin tezi şirket büyümeye devam etmesi, eğer çeyreklik büyüme %20 altına düşerse satarım" diye olaya bağla.\n\nNiye zor: Fiyat düşünce "bekleyim toparlasın" demek insan refleksi. Stop\'a uymak duygusal disiplin gerektirir. Ama profesyonel trader\'ları amatörlerden ayıran en büyük tek davranış budur.\n\nŞöyle düşün: Bir asansörde "düşersem 30 metre düşeyim" mi yoksa "düşersem güvenlik kemerim bana 5 metrede durur" mu demek istersin? Stop-loss güvenlik kemeri.\n\nNiye önemli: Kayıpları küçük tut. Bir trade\'in tezi yanlışsa kabullen, sermayeni koru. Hep doğruluğa değil hayatta kalmaya odaklan.' },
+
+  { t: 'Asimetrik bahis — küçük risk, büyük ödül', tag: 'Strateji',
+    body: 'Asimetrik bahis = "kaybedersem az, kazanırsam çok" tipi pozisyonlar. Risk-ödül oranı tek taraflıdır.\n\nMesela: %10 risk al, %50 potansiyel ödülün varsa, %40 win rate olsa bile uzun vadede pozitif getiri eder. Çünkü kazandığında 5 kat geri alırsın, kaybettiğinde 1 birim kaybedersin.\n\nMatematik: 100 trade yaparsan, 40 kazanır × 50 = 2000 kazanç. 60 kaybeder × 10 = 600 kayıp. Net: +1400. Pozitif beklenen değer.\n\nBuffett ve Munger\'in stratejisi bu: yıllarca beklerler, hiç bir şey almazlar. Sonra büyük bir krizde, fiyat aşırı düşmüş kaliteli bir şirket görünce bütçenin büyük kısmını koyarlar. Asimetrik fırsat.\n\nNiye önemli: Her gün trade yapmak değil, doğru fırsatı beklemek. Ödülün riskten orantısal olarak büyük olduğu pozisyonu bul. Kötü oranlı bahislere para harcama.' },
+
+  { t: 'Korelasyon ≠ nedensellik — birlikte hareket ediyorlarsa illa bağlantılı değiller', tag: 'Davranış',
+    body: '"X yükseldiğinde Y de yükseliyor" cümlesi, X\'in Y\'yi etkilediğini göstermez. Üçüncü bir değişken ikisini birden hareket ettiriyor olabilir.\n\nMesela: Dondurma satışları arttığında boğulma vakaları artıyor. Dondurma boğulmaya neden olmuyor — yaz mevsimi her ikisini de artırıyor. Üçüncü değişken: hava sıcaklığı.\n\nYatırımda: "Altın yükseldiğinde S&P 500 düşüyor, demek ki altın aldığım için riskten korunmuşum." Aslında ikisi de doların hareketine tepki veriyor olabilir. Dolar zayıflar → altın yükselir + ABD ihracatçısı şirketler kazanır → S&P yükselebilir de düşebilir de.\n\nKısa vadeli korelasyona güvenen stratejiler kriz döneminde çöker. Çünkü kriz olduğunda "her şey aynı yöne düşer" — diversifikasyon iddianız çalışmaz.\n\nNiye önemli: "İki şey beraber hareket ediyor" sezgisi bir strateji değil. Niye birlikte hareket ettiklerini anlamadan, ileride ayrı yönlere de gidebileceklerini hesaba kat.' },
+
+  { t: 'Faiz — paranın zaman değeri', tag: 'Makro',
+    body: 'Faiz yükseldiğinde hisseler düşer, faiz düştüğünde hisseler yükselir. Sebebi: hisse değerlemesi gelecekteki kârın bugüne indirgenmiş halidir, ve indirim oranı faiz oranıdır.\n\nŞöyle düşün: 1 yıl sonra alacağın 1100 TL bugün ne değer? Eğer faiz %10 ise: 1000 TL. Eğer faiz %20 ise: 917 TL. Yani faiz arttıkça aynı gelecek nakit akışı bugün için daha az değer eder. Aynı şey hisseler için: faiz arttıkça hisselerin "adil değeri" düşer.\n\nMesela: 2022\'de Fed faizi %0\'dan %5\'e çıkardı. Nasdaq %35 düştü. Çünkü teknoloji şirketleri kâr eden değil "büyüyen" — değerleri çoğunlukla uzak gelecekteki kârlardan geliyor. Faiz artınca o uzak kârlar bugüne çevrilince çok azalıyor.\n\nNiye önemli: TCMB veya Fed faiz kararlarını izlemek "soyut makro" değil, doğrudan hissenin değerini etkiler. Yüksek faiz dönemi = hisse değerlemeleri sıkışır; düşük faiz dönemi = hisseler şişer.' },
+
+  { t: 'Enflasyon ve reel getiri — gerçekten ne kazandın?', tag: 'Makro',
+    body: 'Nominal getiri = paranın sayısal olarak büyümesi. Reel getiri = satın alma gücün açısından büyümesi.\n\nMesela: TL faiz fonun bir yılda %50 kazandırdı. Sevinilecek mi? Önce enflasyona bak. Eğer enflasyon o yıl %45 ise, reel kazancın %5 (kabaca: 1.50 ÷ 1.45 − 1 = %3.4). Yani satın alma gücün sadece %3-5 arttı.\n\nVeya: Maaşın %30 artar. "Süper!" Ama enflasyon %50 ise, gerçekte fakirleştin — aynı maaşla daha az ekmek alabiliyorsun.\n\nTürkiye gibi yüksek enflasyon ülkelerinde nominal rakamlar yanıltıcı. Kim "TL faizi %50!" diye konuşursa, "enflasyon ne?" diye sor. Çoğu durumda reel getiri çok mütevazıdır.\n\nNiye önemli: Servetin gerçek ölçüsü "para sayısı" değil "satın alabildiklerin". Tüm yatırımlarını reel terimlerle düşün, nominal değil.' },
+
+  { t: 'Volatilite ≠ risk — geçici dalgalanma vs kalıcı kayıp', tag: 'Risk',
+    body: 'Akademik finans volatiliteyi (fiyat dalgalanmasını) "risk" olarak ölçer. Ama uzun vadeli yatırımcı için gerçek risk farklıdır.\n\nGerçek risk: kalıcı sermaye kaybı. Şirket batması, paranın geri gelmemesi.\n\nGeçici dalgalanma değil: Bir endeks fonu %30 düşer, sonra 2 yılda toparlar. Buna risk diyebilir miyiz? Eğer 20 yıllık planın varsa, hayır — sadece gürültü.\n\nBuffett: "Volatilite bizim için fırsat, risk değil. Düştüğünde daha çok alırız."\n\nMesela: 2008\'de S&P 500 %50 düştü. "Risk gerçekleşti" derseniz, 2013\'te yeni rekora çıktı. Tutmuş olanlar kazandı; volatilite korkusuyla satmış olanlar kaybetti.\n\nNiye önemli: Geçici düşüşlerden korkma, ama temel olarak bozulan (şirket iflas etmek üzere) bir şeyden de "fiyat düşüş = fırsat" diye yapışma. Farkı görmek lazım.' },
+
+  { t: 'Endeks fonu — pasif yatırımın gücü', tag: 'Strateji',
+    body: 'Endeks fonu = bir piyasanın tamamına sahip olma. S&P 500 endeks fonu satın alırsan, otomatik olarak ABD\'nin en büyük 500 şirketinden küçük paylar alırsın.\n\nNiye iyi:\n• Otomatik diversifikasyon (500 şirket tek alımda)\n• Çok düşük ücret (%0.05-0.20/yıl)\n• Tek tek hisse seçme stresi yok\n• Çoğu profesyonel aktif fonu yenmek\n\nAraştırma sonucu: 15 yıllık dönemde, S&P 500 endeksini yenebilen aktif fon sayısı sadece %15. Yani %85\'i, daha çok ücret aldığı halde, sadece endekse "kopya çekseydi" daha iyi olacaktı.\n\nBuffett: Eşine bıraktığı portföyün %90\'ı tek bir S&P 500 endeks fonu olsun diye vasiyet etmiş. Dünyanın en iyi yatırımcısı, eşine "endeks fonu al" diyor — bunu düşün.\n\nNiye önemli: Hisse seçmek zor ve çoğu zaman değer üretmez. Basit ve sıkıcı yol genelde kazanır. Aktif yönetim heyecanlıdır ama heyecan = ücret + risk + alpha kaybı.' },
+
+  { t: 'TER — fonun gizli yiyici ücreti', tag: 'Değerleme',
+    body: 'TER (Total Expense Ratio) = bir yatırım fonunun sana yıllık olarak kestiği toplam yönetim ücreti.\n\nMesela: 100.000 TL\'lik bir fon, TER %2 ise, yıllık 2000 TL ücret keser. Az gibi geliyor ama bileşik etkiyle yiyici.\n\nKarşılaştırma: TER %0.5 olan fon ile TER %2 olan fon arasında 30 yıllık fark portföyünün %30\'una yakın bir kayıptır. Yani 1 milyon TL\'lik portföyün ile arada 300.000 TL fark olabilir.\n\nMesela: TEFAS\'ta (Türkiye fon platformu) Nasdaq fonlarına bakarsan TER\'leri %2-3 arası gezinir, ama düşük TER\'li (%0.5-1) seçenekler de var. Aynı endeksi takip ediyorlar — sadece biri sana daha az ücret kesiyor.\n\nNiye önemli: Endeks fonu seçerken sadece tek kritere bak: en düşük TER. Diğer her şey teferruattır. Düşük TER = uzun vadede ekstra %30 servet.' },
+
+  { t: 'Rebalancing — portföyünü düzenli düzleştirmek', tag: 'Strateji',
+    body: 'Hedef portföy dağılımı koyarsın: %60 hisse, %40 tahvil mesela. Zamanla hisse iyi giderse %80\'e çıkar. Şimdi: hisse rakamı yüksek, tahvil eksik. Rebalancing = hisseden satıp tahvile alarak hedef oranlara dönmek.\n\nNiye iyi: Bu mekanik kural duygudan bağımsız "yükselende sat, düşende al" yapar.\n\nMesela: 2022 başında hisse %80, tahvil %20 oldu (hisse yükseldi). Rebalance ederken hisse sat (yüksekteyken), tahvil al (düşükteyken). Sonra 2022 sonu hisse düştü, tahvil yükseldi → tersine rebalance. Hisseyi düşükteyken al, tahvili yüksekteyken sat.\n\nSıklık: Yılda 1 kez yeterli. Daha sık rebalancing maliyet üretir (komisyon, vergi).\n\nŞöyle düşün: Bahçende çiçek ekersin, bazıları büyür. Yılda bir kez orantıyı düzeltirsin — yoksa bir tür her şeyi kaplar. Aynı: portföyünde "yıldız" hisseler büyüyüp domine etmesin.\n\nNiye önemli: Disiplinli "al-düşük, sat-yüksek" mekaniği. Duygulardan bağımsız işler. Pasif yatırımın hızlandırıcısı.' },
+
+  { t: 'Margin / kaldıraç — borçla yatırım = ateşle oynamak', tag: 'Risk',
+    body: 'Kaldıraç = borç para ile yatırım. Broker sana 1 TL\'lik teminata 4 TL\'lik pozisyon açtırır (4x kaldıraç).\n\nMesela: 10.000 TL\'n var, 4x kaldıraçla 40.000 TL\'lik THYAO aldın. Fiyat %10 yükselirse, 4000 TL kazanırsın (%40 sermaye getirisi!). Ama fiyat %10 düşerse, 4000 TL kaybedersin (sermayenin %40\'ı silindi). Çok hızlı.\n\nDaha kötüsü: Belirli bir kayıp seviyesini geçince broker pozisyonunu "margin call" ile zorla kapatır. Yani fiyat sonra toparlasa bile sen çoktan likide edilmişsindir.\n\nMesela: Long-Term Capital Management (1998). Nobel ödüllü iki ekonomist yönettiği fon. Modelleri kusursuzdu ama 30x kaldıraçla çalışıyorlardı. Rus krizi geldi → bir hafta içinde 4.6 milyar $ kaybettiler. Modelleri "doğru"ydu ama kaldıraç onları öldürdü.\n\nNiye önemli: Pozitif beklenen değerli bir stratejin olsa bile, kaldıraç seni yolun ortasında iflas ettirebilir. Hayatta kalmak getiriden önemli. Yeni başlayan → kaldıraç yok.' },
+
+  { t: 'Insider buying — şirket sahipleri kendi hisselerini ne zaman alır?', tag: 'Strateji',
+    body: 'Bir şirketin CEO\'su veya CFO\'su (yöneticileri) kendi paralarıyla şirket hissesi aldığında, bu güçlü bir sinyaldir. Çünkü onlar şirketin içini herkesten iyi bilir, ve kendi paralarını ortaya koyuyorlar.\n\nABD\'de bu işlemler SEC\'e bildirilmek zorunda — herkes Form 4 dosyalarından görebilir. Türkiye\'de KAP\'ta açıklanır.\n\nMesela: 2023\'te Meta CEO\'su Zuckerberg kendi parasından hisse aldı. Sonra Meta hissesi 2024\'te %150 yükseldi. Tabii her zaman olmaz, ama akademik çalışmalar küçük ama anlamlı bir outperformance gösteriyor.\n\nÖnemli ayrım: İçeriden ALIM güçlü sinyal (yöneticinin "değerli görüyorum" demesi). İçeriden SATIM çok zayıf sinyal — vergi planlaması, çeşitlendirme, ev alacak gibi yüzlerce sebep olabilir. Yani sadece alımlara dikkat et.\n\nNiye önemli: Tek başına strateji değil ama portföy filtresi olabilir. "Bu şirketin yöneticisi 6 ay içinde hisse almışsa, dikkate al" tarzı.' },
+
+  { t: 'Buy-and-hold — sıkıcı ama kazandıran strateji', tag: 'Strateji',
+    body: 'Al ve tut. Çok basit. Çok sıkıcı. Çok etkili.\n\nİstatistiksel gerçek: S&P 500\'ün son 20 yıllık getirisinin en iyi 10 gününü kaçırsaydın, toplam getiri yarıya iner. En iyi 30 gününü kaçırsaydın, sıfıra yaklaşır.\n\nİlginç olan: En iyi günler genelde kötü günlerin etrafında kümelenir. Yani: piyasa %5 düşer, panik satarsın, ertesi gün %4 yükselir — bunu kaçırırsın. "Doğru anı bekleyim" yaklaşımı pratikte sürekli bu en iyi günleri kaçırmak demektir.\n\nMesela: 2020 Mart\'ta COVID paniğiyle satanlar, Mart-Nisan toparlanmasını kaçırdı. Üç ay sonra "yeniden alma" zamanı geldiğinde, fiyatlar zaten yeni zirvedeydi.\n\nDeyim: "Time in the market beats timing the market." Piyasada zaman geçirmek, piyasayı zamanlamayı yenir.\n\nNiye önemli: Heyecanlı al-sat dur-kalk yerine, sakin oturup düzenli alım yapmak ve uzun süre tutmak. Sıkıcıdır ama kazanır.' }
 ];
 
 // ============ EVENT TYPES — eğitici katalog ============
@@ -1709,142 +1769,142 @@ const EVENT_TYPES = [
   {
     id: 'tcmb_faiz', country: 'TR', name: 'TCMB Faiz Kararı', impact: 'high',
     cadence: 'Her ayın son Perşembesi',
-    what: 'Türkiye Cumhuriyet Merkez Bankası\'nın politika faizini belirlediği toplantı. Şu anki faiz seviyesini açıklar.',
-    why: 'Faiz, TL\'nin değerini, kredi maliyetlerini, hisse değerlemelerini doğrudan etkiler. Türkiye gibi yüksek enflasyon ülkelerinde her toplantı kritik — beklenmeyen yöne bir hamle kuru ve borsayı bir günde %5-10 hareket ettirebilir.',
-    reaction: 'Faiz indirimi: TL zayıflar (kur yükselir), BIST kısa vadede yükselir (ucuz para), ama enflasyon kaygısı artarsa banka hisseleri kötü etkilenir. Faiz artışı: TL güçlenir, BIST düşer (özellikle yüksek borçlu şirketler), bankalar kazanan.'
+    what: 'TCMB = Türkiye Cumhuriyet Merkez Bankası. Bir bankanın bankası gibi düşün — diğer bankaların kendisinden borç aldığı oranı (politika faizi) ayda bir kez belirler.\n\nMesela: Politika faizi %50 ise, ticari bankalar müşterilerine bunun üstüne kâr ekleyerek %60-70 kredi verir, mevduata %45 faiz öder.',
+    why: 'Bu rakam değişince zincirleme her şey değişir:\n• Kredi maliyetin (ev, araba, kredi kartı)\n• Bankaların kâr marjı\n• Şirketlerin borçlanma maliyeti → kârları\n• TL\'nin değeri (yüksek faiz → yabancılar TL alır → kur düşer)\n• Hisse senedi değerlemeleri (yüksek faiz → hisse fiyatları düşer)\n\nÖrnek: Beklenmeyen bir faiz hamlesi bir günde BIST\'i %5-10 oynatabilir.',
+    reaction: 'Faiz İNDİRİMİ olursa:\n• TL zayıflar (kur YUKARI çıkar)\n• BIST başta yükselir ("ucuz para hisseye akar")\n• Bankalar zayıflar (kâr marjı daralır)\n\nFaiz ARTIŞI olursa:\n• TL güçlenir (kur AŞAĞI iner)\n• BIST düşer (özellikle borçlu şirketler)\n• Bankalar güçlenir'
   },
   {
     id: 'tufe', country: 'TR', name: 'TÜFE / ÜFE (Enflasyon)', impact: 'high',
-    cadence: 'Her ayın 3. iş günü, TÜİK tarafından',
-    what: 'Tüketici Fiyat Endeksi (TÜFE) ve Üretici Fiyat Endeksi (ÜFE) — bir önceki ayki fiyat artışı. Yıllık ve aylık olarak açıklanır.',
-    why: 'Enflasyon doğrudan TCMB\'nin faiz kararını etkiler. Beklentiden yüksek TÜFE → TCMB\'nin sıkılaşma baskısı → BIST için olumsuz. Reel getiri hesaplamasının temelidir.',
-    reaction: 'Beklentinin üzeri: TL satışı, BIST düşüş, tahvil faizleri yükselir. Beklentinin altı: TL alımı, BIST rallisi. ÜFE beklentiden yüksek → şirketlerin maliyet baskısı sinyali, kâr marjı endişesi.'
+    cadence: 'Her ayın 3. iş günü saat 10:00, TÜİK',
+    what: 'TÜFE = Tüketici Fiyat Endeksi (Türkçesi: "vatandaşın aldığı şeylerin ne kadar pahalandığı"). Bir önceki ayda fiyatlar yüzde kaç arttı?\n\nÜFE = Üretici Fiyat Endeksi. Bu, şirketlerin hammadde ve üretim maliyetlerinin ne kadar arttığı. Genelde TÜFE\'den önce hareket eder — bugünün ÜFE\'si yarınki TÜFE\'yi haber verir.\n\nMesela: Geçen ay TÜFE %3 aylık çıktıysa, demek ki ortalama vatandaşın sepeti bir ayda %3 pahalandı.',
+    why: 'TÜFE TCMB\'nin faiz kararını şekillendirir. Beklentinin üstünde TÜFE → "TCMB sıkılaştırır" (faiz yükseltir) korkusu → BIST düşer.\n\nBir de bireysel olarak: nominal getirini reel getiriye çevirmek için TÜFE\'yi bilmen lazım. Yıllık %50 faiz aldıysan ama TÜFE %50 ise, gerçekten kazanan değilsin.',
+    reaction: 'Beklentinin ÜSTÜ TÜFE:\n• TL satışı, kur yukarı\n• BIST düşüş, tahvil faizleri sıçrar\n• ÜFE de yüksekse → şirketler maliyetlerini erteleyemez → kâr marjı endişesi\n\nBeklentinin ALTI TÜFE:\n• TL alımı, kur aşağı\n• BIST rallisi (faiz indirim umudu)\n• Bankalar, perakende, otomotiv hisseleri kazanan'
   },
   {
     id: 'fed_fomc', country: 'US', name: 'Fed FOMC Faiz Kararı', impact: 'high',
-    cadence: 'Yılda 8 kez (yaklaşık her 6 haftada bir Çarşamba)',
-    what: 'ABD Merkez Bankası\'nın (Federal Reserve) faiz kararı. Powell\'ın basın toplantısı dahil.',
-    why: 'Dünyanın en önemli faiz toplantısı. Sadece ABD\'yi değil, küresel risk iştahını, dolar endeksini, gelişen piyasaları (BIST dahil) etkiler. Powell\'ın "tonu" rakam kadar önemli.',
-    reaction: 'Faiz indirim sinyali: Nasdaq + S&P rallisi, dolar zayıflar, altın yükselir, gelişen piyasa hisseleri çekici. Şahin (hawkish) ton: tech hisseleri sertçe düşer, savunma sektörü ve değer hisseleri görece korunur.'
+    cadence: 'Yılda 8 kez (yaklaşık her 6 haftada bir Çarşamba 21:00 TR saati)',
+    what: 'Fed = Federal Reserve = ABD\'nin Merkez Bankası. FOMC = Federal Open Market Committee — Fed\'in faiz kararını veren komite. Başkanı Jerome Powell.\n\nKarardan sonra Powell basın toplantısı yapar (21:30 TR) — burada söylediklerinin "tonu" rakam kadar önemli.\n\nDolayısıyla bu sadece bir rakam açıklaması değil, dünyanın en büyük ekonomisinin gelecek planını okumak.',
+    why: 'Bu, dünyanın en önemli faiz toplantısı. Sebep: dolar dünyanın rezerv para birimi. Fed faizi yükselince dolar değer kazanır, dünyanın her yerinden para ABD\'ye akar, gelişen piyasalar (Türkiye dahil) satılır.\n\nMesela: 2022\'de Fed faizi %0\'dan %5\'e çıkardı. Nasdaq %35 düştü, dolar arttı, BIST de bundan dolaylı etkilendi.',
+    reaction: 'Faiz İNDİRİM sinyali (güvercin/dovish ton):\n• Nasdaq + S&P rallisi\n• Dolar zayıflar, altın yükselir\n• Gelişen piyasalar (BIST) yukarı\n• Tech hisseleri en çok kazanır\n\nFaiz ARTIŞ sinyali (şahin/hawkish ton):\n• Nasdaq sertçe düşer (özellikle büyüme hisseleri)\n• Dolar güçlenir\n• Savunma hisseleri (Coca-Cola, JNJ gibi) görece korunur'
   },
   {
     id: 'cpi', country: 'US', name: 'ABD CPI (Tüketici Enflasyonu)', impact: 'high',
-    cadence: 'Her ayın 10-15\'i arası, sabah 08:30 ET',
-    what: 'ABD\'deki bir önceki ay enflasyon verisi. Headline CPI ve gıda+enerji hariç Core CPI ayrı açıklanır.',
-    why: 'Fed\'in faiz kararını şekillendiren tek numaralı veri. Beklenti farkı %0.1 bile olsa piyasa keskin tepki verir.',
-    reaction: 'Beklenti üstü: tahvil faizleri sıçrar, Nasdaq düşer, dolar güçlenir. Beklenti altı: Nasdaq rallisi, dolar zayıflar, altın yükselir. Türk yatırımcı için: dolar hareketi BIST\'i indirgemeli etkiler.'
+    cadence: 'Her ayın 10-15\'i arası, 15:30 TR saati',
+    what: 'CPI = Consumer Price Index. Türkiye\'deki TÜFE\'nin ABD versiyonu. Bir önceki ayki tüketici enflasyonu.\n\nİki versiyon açıklanır:\n• "Headline" CPI: her şey dahil (gıda + enerji + diğer)\n• "Core" CPI: gıda ve enerji hariç (çünkü onlar çok dalgalı). Fed buna daha çok bakar.\n\nMesela: Beklenti %3.2, gerçek %3.4 çıkarsa = "beklenti üstü". %3.0 çıkarsa = "beklenti altı".',
+    why: 'Fed\'in faiz kararını şekillendiren bir numaralı veri. Hedef enflasyon %2; bu rakamdan ne kadar uzaksa, Fed o kadar agresif davranır.\n\nÖnemli: piyasa beklentiyi zaten fiyata yansıtmıştır. Tepkiyi yaratan, gerçek rakamın beklentiden ne kadar farklı çıktığı. %0.1 sapma bile yeterli.',
+    reaction: 'CPI beklenti ÜSTÜ çıkarsa:\n• Tahvil faizleri sıçrar (Fed daha sıkı olacak korkusu)\n• Nasdaq sertçe düşer (özellikle teknoloji)\n• Dolar güçlenir, altın düşer\n• BIST için: dolar yükseleceği için kısa vadede karışık etki\n\nCPI beklenti ALTI çıkarsa:\n• Nasdaq rallisi\n• Dolar zayıflar, altın yükselir\n• Gelişen piyasalar nefes alır'
   },
   {
-    id: 'nfp', country: 'US', name: 'Non-Farm Payrolls (İstihdam)', impact: 'high',
-    cadence: 'Her ayın ilk Cuması, sabah 08:30 ET',
-    what: 'ABD\'de tarım dışı sektörlerde önceki ay yaratılan iş sayısı. İşsizlik oranı ve ortalama saatlik ücret de aynı anda açıklanır.',
-    why: 'Fed\'in çift mandatından biri istihdam. Güçlü istihdam → faiz indirimi gecikir. Zayıf istihdam → resesyon kaygısı veya faiz indirim umudu (durum bağımlı).',
-    reaction: 'Çok güçlü veri: tahvil satışı, hisse karışık (önce düşüş, sonra ekonomi güçlü demek diye toparlama). Çok zayıf veri: önce düşüş (resesyon kaygısı), sonra ralli (Fed indirir mantığı). Goldilocks — orta, iyi haber.'
+    id: 'nfp', country: 'US', name: 'NFP — Non-Farm Payrolls (ABD İstihdam)', impact: 'high',
+    cadence: 'Her ayın ilk Cuması, 15:30 TR saati',
+    what: 'NFP = ABD\'de tarım dışı sektörlerde önceki ay kaç yeni iş yaratıldı? Aynı anda işsizlik oranı ve ortalama saatlik ücret artışı da açıklanır.\n\nMesela: NFP +250.000 → ekonomi güçlü, ay içinde 250 bin yeni iş kuruldu. NFP +50.000 → ekonomi yavaşlıyor.\n\nGenelde "ne çok güçlü ne çok zayıf" (Goldilocks) durum piyasa için ideal sayılır.',
+    why: 'Fed\'in iki görevi var: enflasyonu kontrol etmek + istihdamı korumak. Çok güçlü istihdam → faiz indirimi geç olur (ekonomi sıkı). Zayıf istihdam → ya resesyon korkusu (kötü) ya da faiz indirim umudu (iyi) — bağlama göre değişir.',
+    reaction: 'Çok GÜÇLÜ veri (örn. beklenti +180K, gerçek +300K):\n• Tahvil satışı, faizler yükselir\n• Hisse karışık: önce düşer (Fed sıkı kalır) sonra toparlanabilir (ekonomi güçlü)\n• Dolar yükselir\n\nÇok ZAYIF veri (örn. beklenti +180K, gerçek +50K):\n• Önce düşüş (resesyon kaygısı)\n• Sonra ralli (Fed indirir mantığı)\n• Tahvil rallisi (faizler düşer)\n\nGoldilocks (orta, beklentiye yakın): hisseler için en iyi haber'
   },
   {
     id: 'pce', country: 'US', name: 'Core PCE (Fed\'in Tercih Ettiği Enflasyon)', impact: 'high',
-    cadence: 'Her ayın son haftası, Cuma sabah 08:30 ET',
-    what: 'Personal Consumption Expenditures — Fed\'in resmi enflasyon hedefinde kullandığı ölçüm. Core (gıda+enerji hariç) PCE en kritik.',
-    why: 'CPI daha tanınmış olsa da, Fed politikasında PCE belirleyici. %2 hedefe yakınlığı doğrudan faiz beklentilerini şekillendirir.',
-    reaction: 'CPI ile benzer ama daha sessiz tepki. Beklenti üstü → tahvil faizleri yükselir, hisse hafif düşer. Beklenti altı → faiz indirim umudu artar, Nasdaq rallisi.'
+    cadence: 'Her ayın son haftası Cuma, 15:30 TR saati',
+    what: 'PCE = Personal Consumption Expenditures = "Kişisel Tüketim Harcamaları". Bir başka enflasyon ölçümü.\n\nFarkı CPI\'dan: PCE, insanların alışveriş sepetini sürekli günceller (eskiden ramen yenirken et pahalılaşınca ramen alırsanız onu hesaba katar). Daha esnek, daha gerçek tüketim deseni.\n\nCore PCE = gıda + enerji çıkarılmış hali.\n\nFed resmi olarak Core PCE\'yi takip eder, %2\'yi hedef olarak koyar.',
+    why: 'CPI medyada daha çok konuşulur ama Fed politikası için PCE belirleyici. Yani: CPI sürpriz çıksa bile, asıl test PCE\'de. PCE %2\'ye yakınlaştığında Fed faiz indirimi konuşmaya başlar.',
+    reaction: 'PCE genelde CPI\'dan daha sessiz tepki üretir (çünkü piyasa zaten CPI\'yı sindirmiştir).\n\nBeklenti ÜSTÜ PCE → tahvil faizleri yükselir, hisse hafif düşer.\nBeklenti ALTI PCE → faiz indirim umudu artar → Nasdaq rallisi.'
   },
   {
-    id: 'gdp_us', country: 'US', name: 'ABD GSYİH (GDP)', impact: 'medium',
-    cadence: 'Çeyrek başına 3 kez (Advance, Second, Final), ~28. günler',
-    what: 'ABD\'nin çeyreklik büyüme oranı. İlk açıklama (Advance) en çok piyasa hareketi yaratır, sonraki revizeler az.',
-    why: 'Resesyon sinyali en güçlü göstergelerinden biri. Üst üste 2 çeyrek negatif → teknik resesyon.',
-    reaction: 'Güçlü GDP: hisse + dolar yükselir, ama Fed sıkılaşma kaygısı varsa karışık. Zayıf GDP: Fed indirim umudu (hisse yukarı) veya panik (hisse aşağı), ekonomik döngüye bağlı.'
+    id: 'gdp_us', country: 'US', name: 'ABD GSYİH (GDP) Büyüme', impact: 'medium',
+    cadence: 'Çeyrek başına 3 kez açıklama (Advance, Second, Final)',
+    what: 'GDP = Gross Domestic Product = bir ekonominin 3 ayda ürettiği tüm mal ve hizmetlerin toplam değeri. "Ekonominin büyüklüğü" diye düşün.\n\nÜç ayrı versiyon açıklanır:\n• Advance (ilk tahmin): en çok piyasa tepkisi\n• Second (revize): küçük tepki\n• Final (kesin): genelde önemsiz\n\nMesela: Q1 GDP yıllıklandırılmış %2.5 büyüme demek "bu hızla devam ederse 12 ayda ekonomi %2.5 büyür."',
+    why: 'Resesyon = ekonominin küçülmesi. Tanımı: üst üste 2 çeyrek negatif GDP büyümesi = "teknik resesyon".\n\nResesyon olduğunda işsizlik artar, şirket kârları düşer, hisseler ortalama %30+ düşer.',
+    reaction: 'GÜÇLÜ GDP (beklenti üstü):\n• Hisse yukarı (ekonomi sağlam)\n• Dolar yukarı\n• Fed sıkılaşır mı korkusu varsa karışık\n\nZAYIF GDP:\n• Önce panik (resesyon!)\n• Sonra umut (Fed indirir!)\n• Hangisinin baskın olacağı dönemin diğer dengelerine bağlı'
   },
   {
     id: 'pmi', country: 'TR/US', name: 'PMI (Satın Alma Yöneticileri Endeksi)', impact: 'medium',
-    cadence: 'Her ayın ilk iş gününde (manufacturing) ve 3. (services)',
-    what: 'Şirketlerin gelecek üretim/sipariş beklentilerini ölçen endeks. 50 üstü genişleme, altı daralma.',
-    why: 'Resesyonu 3-6 ay önceler. TÜFE\'den önce ekonomik yavaşlamayı görmenin en hızlı yolu.',
-    reaction: '50 altına ilk düşüş: tahvil rallisi (faiz indirim umudu), savunma hisseleri yukarı, döngüsel sektörler aşağı. 50 üstü güçlü: ekonomi sağlam mesajı.'
+    cadence: 'Her ayın ilk iş günü (imalat) ve 3. iş günü (hizmet)',
+    what: 'PMI = Purchasing Managers\' Index. Şirketlerin satın alma müdürlerine her ay anket yapılır: "Geçen aya göre yeni siparişleriniz, üretiminiz, istihdamınız nasıl gidiyor?"\n\nÖlçek 0-100, 50 = "sıfır değişim". 50 üstü = genişleme. 50 altı = daralma.\n\nİki versiyon: Manufacturing PMI (imalat) + Services PMI (hizmet).\n\nMesela: PMI 53.2 → ekonomi genişliyor. PMI 48.7 → ekonomi yavaşlıyor. PMI 45 → ciddi daralma.',
+    why: 'Ekonominin "şirket düzeyinde" nabzı. Avantajı: resmi GDP rakamından 3-6 ay önce sinyal verir. TÜFE bile daha geç hareket eder.\n\nŞöyle düşün: Şirketler gelecek 1-3 ayda ne göreceğine bakarak satın alma kararı verir. Bu kararlar bir kaç ay sonra resmi rakamlara yansır.',
+    reaction: '50 ALTINA ilk düşüş:\n• Tahvil rallisi (faiz indirim umudu)\n• Savunma sektörü (gıda, sağlık) güçlenir\n• Döngüsel sektörler (otomotiv, lüks, sanayi) zayıflar\n\n50 ÜSTÜ güçlü PMI:\n• Hisseler için pozitif (ekonomi sağlam)\n• Tahvil faizleri yükselebilir (faiz indirimi gecikir)'
   },
   {
     id: 'unemployment_tr', country: 'TR', name: 'Türkiye İşsizlik Oranı', impact: 'low',
-    cadence: 'Her ayın yaklaşık 15\'inde, TÜİK',
-    what: '3 ay önceki ay için işsizlik verisi. Genç işsizliği, geniş tanım dahil ayrı kategorilerde.',
-    why: 'Türkiye\'de iç tüketim ve sosyal istikrar göstergesi. Faiz kararını doğrudan etkilemez ama bütçe dengesi/iç talep beklentisini şekillendirir.',
-    reaction: 'BIST için kısa vadeli etki düşük. Ama kötü veri zincir mağazalar/perakende hisselerini kısa vadede zayıflatır.'
+    cadence: 'Her ayın yaklaşık 15\'i saat 10:00, TÜİK',
+    what: '3 ay önceki ay için işsizlik oranı (yani Mayıs\'ta Şubat verisi çıkar). Genç işsizliği ve "atıl iş gücü" gibi alt kategoriler de açıklanır.\n\nMesela: İşsizlik %9.5, genç işsizliği %17 — yani 15-24 yaş arasında her 6 kişiden 1\'i işsiz.',
+    why: 'Türkiye için iç tüketim ve sosyal istikrar göstergesi. Faiz kararını doğrudan etkilemez ama hükümet politikalarını ve iç talep beklentisini şekillendirir.',
+    reaction: 'BIST için kısa vadeli etki düşük (3 ay gecikmeli veri olduğu için ham bilgi az). Ama kötü veri:\n• Zincir mağazalar (BIM, MİGROS, Şok) ve perakende hisselerini hafifletir\n• İçeride istihdam yaratan inşaat hisselerine de yansır'
   },
   {
-    id: 'cari', country: 'TR', name: 'Cari İşlemler Dengesi', impact: 'medium',
-    cadence: 'Her ayın yaklaşık 11\'inde, TCMB',
-    what: 'Türkiye\'nin ihracat-ithalat farkı (mal+hizmet+gelir). Açık veya fazla olarak yıllık trend takip edilir.',
-    why: 'TL\'nin yapısal değer baskısının ana ölçütü. Sürekli yüksek cari açık → TL satış baskısı, kur yukarı.',
-    reaction: 'Beklenenden büyük açık: TL zayıflama, dolar yükselişi, ihracatçı hisseleri (THYAO, ASELS) lehine, ithalatçı (Otomotiv, beyaz eşya) aleyhine. Fazla veya küçük açık: TL güçlenme, BIST yukarı.'
+    id: 'cari', country: 'TR', name: 'Cari İşlemler Dengesi (Cari Açık)', impact: 'medium',
+    cadence: 'Her ayın yaklaşık 11\'i saat 10:00, TCMB',
+    what: 'Cari işlemler dengesi = Türkiye\'nin ihracat-ithalat farkı. Mal + hizmet + yurtdışı gelir hepsi dahil.\n\nMesela: Türkiye bir ayda yurt dışına 20 milyar $ mal satıp 22 milyar $ mal alırsa, cari açık 2 milyar $. Türkiye sürekli açık veren bir ülke (genelde -3 ile -5 milyar $/ay civarı).\n\nŞöyle düşün: Senin maaşın 30K TL ama harcaman 35K TL. Aradaki 5K\'yı borçlanarak veya tasarrufundan kapatıyorsun. Sürekli olursa zor durumdasın. Türkiye için de aynı.',
+    why: 'TL\'nin yapısal değer baskısının ana ölçütü. Sürekli yüksek cari açık → yabancıdan döviz almak gerek → dolar talebi artar → kur yukarı çıkar.\n\nBu yüzden Türkiye\'de "kur niye yükseliyor?" sorusunun en derin cevaplarından biri cari açıkta yatar.',
+    reaction: 'Beklenenden BÜYÜK açık:\n• TL zayıflar, dolar yukarı\n• İHRACATÇI hisseler kazanan (THYAO, ASELS, FROTO — döviz kazanırlar)\n• İTHALATÇI hisseler kaybeden (otomotiv, beyaz eşya, elektronik)\n\nFazla veya küçük açık:\n• TL güçlenir\n• İthalatçılar nefes alır'
   },
   {
     id: 'retail_us', country: 'US', name: 'ABD Perakende Satışlar', impact: 'medium',
-    cadence: 'Her ayın yaklaşık 15\'inde, sabah 08:30 ET',
-    what: 'ABD\'deki tüketici harcamalarının önceki ay rakamı. GSYİH\'nin yaklaşık %70\'i tüketici harcaması.',
-    why: 'Resesyon olup olmadığının en doğrudan göstergelerinden biri. Tüketici hâlâ harcıyorsa resesyon zor.',
-    reaction: 'Güçlü veri: hisseler yukarı, özellikle perakende (Walmart, Costco, Amazon). Zayıf veri: tüm hisselerde satış baskısı, savunma sektörü görece korunur.'
+    cadence: 'Her ayın yaklaşık 15\'inde, 15:30 TR saati',
+    what: 'ABD\'deki tüketici harcamalarının önceki ay rakamı. Restoran, market, online alışveriş, akaryakıt — hepsi.\n\nNeden önemli: ABD GSYİH\'sinin yaklaşık %70\'i tüketici harcamasından gelir. Yani: tüketici harcıyorsa, ABD ekonomisi büyüyor demek.\n\nMesela: Perakende satışlar +0.3% aylık → tüketici sağlam. -0.5% → tüketici tedirgin, harcamayı kısıyor.',
+    why: 'Resesyon olup olmadığının en doğrudan göstergelerinden. Tüketici hâlâ harcıyorsa resesyon zor. Tüketici cüzdanını kapattı mı, resesyon yakındır.',
+    reaction: 'GÜÇLÜ veri:\n• Hisseler yukarı\n• Özellikle perakende hisseleri (WMT, COST, AMZN) parlar\n• Tüketim malları (Coca-Cola, P&G) da iyi\n\nZAYIF veri:\n• Tüm hisselerde satış baskısı\n• Savunma sektörü (gıda zinciri, sağlık) görece korunur\n• Dolar zayıflar'
   },
   {
     id: 'industrial_prod_tr', country: 'TR', name: 'Sanayi Üretimi', impact: 'low',
-    cadence: 'Her ayın yaklaşık 12\'sinde, TÜİK',
-    what: 'İmalat, madencilik ve enerji üretiminin önceki aya göre değişimi.',
-    why: 'Türkiye ekonomisinin reel sektör nabzı. PMI ile birlikte yorumlanmalı.',
-    reaction: 'Beklenti altı: BIST sanayi hisselerinde kısa vadeli satış. Beklenti üstü: KCHOL, EREGL, TUPRS gibi büyük sanayi gruplarında pozitif etki.'
+    cadence: 'Her ayın yaklaşık 12\'sinde saat 10:00, TÜİK',
+    what: 'İmalat sektörü + madencilik + enerji üretiminin önceki aya göre değişimi. "Türkiye fabrikaları geçen ay ne kadar üretti?"\n\nMesela: Sanayi üretimi yıllık %5 büyüdüyse → fabrikalar geçen yıla göre %5 daha çok mal üretiyor → ekonomi reel olarak büyüyor.',
+    why: 'Türkiye ekonomisinin "reel sektör nabzı". PMI bir öncüdür, sanayi üretimi onun gerçekleşmiş hali. İkisini birlikte yorumlamak lazım.',
+    reaction: 'Beklenti ALTI: BIST sanayi hisselerinde (EREGL, TUPRS, KCHOL) kısa vadeli satış.\nBeklenti ÜSTÜ: Aynı hisseler pozitif tepki verir.\n\nGenel piyasa için orta düzey etki — TÜFE veya faiz kadar büyük değil ama görmezden gelinmemeli.'
   },
   {
     id: 'opec', country: 'GLOBAL', name: 'OPEC+ Toplantısı', impact: 'medium',
-    cadence: 'Yılda yaklaşık 6 kez, çoğunlukla Pazar',
-    what: 'OPEC ve OPEC+ üyelerinin üretim kotalarını belirledikleri toplantı. Üretim arttırma/azaltma kararları.',
-    why: 'Petrol fiyatını doğrudan belirler. Türkiye ithalatçı ülke olduğu için Brent fiyatı cari açık ve enflasyonu doğrudan etkiler.',
-    reaction: 'Üretim kesintisi: Brent yukarı, TUPRS gibi rafineriler kazanan ama uzun vadede Türkiye için enflasyonist (TL zayıf, TÜFE yukarı). Üretim artışı: Brent aşağı, Türkiye için iyi haber.'
+    cadence: 'Yılda yaklaşık 6 kez',
+    what: 'OPEC = Petrol İhraç Eden Ülkeler Örgütü (Suudi Arabistan başta). OPEC+ = bu örgüt + Rusya gibi büyük petrol üreticileri.\n\nBu ülkeler toplanıp "ay başına ne kadar petrol üreteceğiz?" diye karar verir. Üretimi kısarlarsa petrol arzı azalır → fiyat yükselir. Üretimi artırırlarsa → fiyat düşer.\n\nMesela: OPEC+ 2023 sonunda günlük 1 milyon varil üretim kesintisi açıklayınca Brent petrol $75\'ten $85\'e yükseldi.',
+    why: 'Petrol fiyatı TÜRKİYE için kritik. Sebep: Türkiye petrol ithalatçısı. Brent yükselince ithalat faturası şişer, cari açık derinleşir, TL zayıflar, enflasyon yukarı çıkar.',
+    reaction: 'Üretim KESİNTİSİ:\n• Brent petrol yukarı\n• TUPRS (rafineri) kısa vadede kazanır (stoğu değerlenir)\n• Türkiye için kötü: TL zayıf, cari açık yüksek, TÜFE yukarı\n\nÜretim ARTIŞI:\n• Brent aşağı\n• Türkiye için iyi haber (genel piyasa için pozitif)\n• Havayolu hisseleri (THYAO) — yakıt maliyeti düşer'
   },
   {
     id: 'earnings', country: 'GLOBAL', name: 'Bilanço Sezonu', impact: 'medium',
     cadence: 'Çeyrek sonrası 4-8 hafta',
-    what: 'Şirketlerin çeyreklik kâr ve gelir açıklamaları. ABD\'de Ocak, Nisan, Temmuz, Ekim ortaları; Türkiye\'de bir ay daha geç.',
-    why: 'Tek tek hisselerin gerçek performansını gösteren temel veri. Bütün stratejilerin nihai testi burada.',
-    reaction: 'Beklenti üstü kâr + iyi forward guidance: hisse %5-20 yukarı. Beklenti üstü ama zayıf guidance: hisse düşebilir (forward looking piyasa). Magnificent 7 bilançoları endeksin tamamını hareket ettirir.'
+    what: 'Bilanço = bir şirketin son 3 aylık mali sonuçları. Gelir, kâr, harcamalar, gelecek beklentisi (forward guidance).\n\nABD\'de büyük şirketler 4 dönemde açıklar:\n• Q1 (Ocak-Mart) → Nisan ortası\n• Q2 (Nisan-Haziran) → Temmuz ortası\n• Q3 (Temmuz-Eylül) → Ekim ortası\n• Q4 (Ekim-Aralık) → Ocak ortası\n\nTürkiye\'de yaklaşık 1 ay daha geç açıklanır.',
+    why: 'Tek tek şirketlerin gerçek performansını gösteren temel veri. "Bu şirket gerçekten para kazanıyor mu?" sorusunun cevabı burada.\n\nSadece geçmiş değil, "forward guidance" (gelecek beklentisi) açıklaması bazen daha önemli — piyasa geleceğe bakar.',
+    reaction: 'Beklenti ÜSTÜ kâr + İYİ guidance: hisse %5-20 yukarı, bir günde.\n\nBeklenti ÜSTÜ ama ZAYIF guidance: hisse düşer (rakam iyi ama gelecek bulanık).\n\nABD\'de "Magnificent 7" (Apple, Microsoft, Google, Amazon, Nvidia, Meta, Tesla) bilançoları endeksin tamamını hareket ettirir — çünkü S&P 500\'ün %30\'unu oluştururlar.'
   },
   {
     id: 'fomc_minutes', country: 'US', name: 'FOMC Toplantı Tutanakları', impact: 'medium',
-    cadence: 'Her FOMC toplantısından 3 hafta sonra Çarşamba 14:00 ET',
-    what: 'FOMC toplantısının detaylı tutanakları. Üye görüşleri, gelecek faiz patikası tartışmaları.',
-    why: 'Toplantıda söylenmeyen nüansları gösterir. "Bazı üyeler" gibi ifadeler beklenti şekillendirir.',
-    reaction: 'Şahin (hawkish) ton: tahvil satışı, hisse hafif düşüş. Güvercin (dovish) ton: hisse rallisi, Nasdaq özellikle yukarı. Çoğu zaman tepki sınırlı çünkü toplantı zaten haftalar önce.'
+    cadence: 'Her FOMC toplantısından 3 hafta sonra Çarşamba, 21:00 TR saati',
+    what: 'FOMC = Fed faiz komitesi. Toplantı bittikten 3 hafta sonra detaylı tutanakları yayınlanır.\n\nNeden ilginç: toplantıda Powell sadece kararı + genel ton söyler. Ama tutanaklarda "üyelerin tartışması" detaylı yer alır. "Bazı üyeler şunu söyledi", "diğerleri itiraz etti" gibi nüanslar.',
+    why: 'Powell\'ın söylemediği şeyleri gösterir. Mesela: Fed faizi indirmedi ama tutanaklarda "5 üye indirim taraftarıydı" yazıyorsa, bir sonraki toplantıda indirim olasılığı arttı demektir.\n\nProfesyoneller tutanakları kelime kelime okur, "şahin/güvercin" tonu sayar.',
+    reaction: 'Şahin (hawkish) ton — daha sıkı:\n• Tahvil satışı\n• Hisse hafif düşüş (özellikle teknoloji)\n• Dolar güçlenir\n\nGüvercin (dovish) ton — daha gevşek:\n• Hisse rallisi (özellikle Nasdaq)\n• Tahvil rallisi\n• Dolar zayıflar\n\nGenelde tepki sınırlı kalır çünkü toplantı zaten haftalar önce — büyük sürpriz nadirdir.'
   },
   {
     id: 'jobless_claims', country: 'US', name: 'Haftalık İşsizlik Başvuruları', impact: 'low',
-    cadence: 'Her Perşembe sabah 08:30 ET',
-    what: 'Bir hafta önceki yeni işsizlik başvurusu sayısı (initial claims) ve devam edenler (continuing).',
-    why: 'Yüksek frekanslı istihdam göstergesi. NFP\'den daha taze ama daha gürültülü.',
-    reaction: 'Trendsel artış (4-6 hafta üst üste): resesyon sinyali, hisse satış, tahvil rallisi. Tek hafta sapması nadiren ciddiye alınır.'
+    cadence: 'Her Perşembe, 15:30 TR saati',
+    what: 'Geçen hafta ABD\'de kaç kişi ilk kez işsizlik maaşına başvurdu? (Initial claims) + kaç kişi hâlâ işsizlik yardımı alıyor? (Continuing claims)\n\nMesela: Initial claims 220.000 normal, 350.000+ kaygı verici, 500.000+ resesyon sinyali.',
+    why: 'İstihdamın yüksek frekanslı versiyonu. NFP aydan aya bakar, bu hafta hafta. Daha taze ama daha gürültülü (tek hafta sapması olabilir).\n\nTrend daha önemli: 4-6 hafta üst üste yükselme = gerçek bir sinyal.',
+    reaction: 'Trendsel ARTIŞ (4-6 hafta üst üste yükseliş):\n• Resesyon sinyali\n• Hisse satış\n• Tahvil rallisi (faiz indirim umudu)\n• Dolar zayıflar\n\nTek hafta sapması nadiren ciddiye alınır — tatil dönemi, sıra dışı olay etkili olabilir.'
   },
   {
-    id: 'options_expiry', country: 'US', name: 'Opsiyon Vade Günü (Quad Witching)', impact: 'medium',
-    cadence: 'Üçer aylık (Mart, Haziran, Eylül, Aralık) 3. Cuma',
-    what: 'Hisse opsiyonları, endeks opsiyonları ve futures\'lerin aynı gün vade dolması. Çok yüksek hacim.',
-    why: 'Hisse fiyatları opsiyon "pin" noktalarına çekilebilir. Volatilite artar. Tek günlük teknik etki.',
-    reaction: 'Belirli fiyat seviyelerine "yapışma" eğilimi. Gün içi büyük hacim ama gün sonu yön belirsiz. Tek günlük olay, ertesi gün normal işleyiş.'
+    id: 'options_expiry', country: 'US', name: 'Quad Witching (Opsiyon Vade Günü)', impact: 'medium',
+    cadence: 'Üç ayda bir (Mart, Haziran, Eylül, Aralık) 3. Cuma',
+    what: 'Opsiyon = bir hisseyi belirli bir tarihte belirli bir fiyata alma/satma hakkı veren sözleşme. Türev ürün.\n\nNormalde her ayın 3. Cumasında opsiyonların vadesi dolar. Ama Mart/Haziran/Eylül/Aralık ayının 3. Cumasında 4 farklı türev birden vadesini doldurur (hisse opsiyonları + endeks opsiyonları + hisse futures + endeks futures). Bu güne "Quad Witching" denir.\n\nMesela: Haziran 2026\'nın 3. Cumasında milyonlarca opsiyon sözleşmesi kapanır → hacim normalin 3-4 katı.',
+    why: 'Bu gün fiyatlar "pin" noktalarına (opsiyonların yoğunlaştığı belirli seviyelere) çekilme eğilimindedir. Çünkü büyük oyuncular pozisyonlarını korumak için işlem yapar.\n\nKısa vadeli, tek günlük bir teknik etki — temel bir şey değil.',
+    reaction: 'Belirli fiyat seviyelerine yapışma eğilimi (örn. NVDA $240\'a yakın takılır).\n\nGün içi yüksek hacim ama gün sonu yön genelde belirsiz. Volatilite kısa süreli artar.\n\nErtesi iş günü normal işleyişe döner. Uzun vadeli stratejini etkilemez.'
   },
   {
     id: 'tcmb_enflasyon_raporu', country: 'TR', name: 'TCMB Enflasyon Raporu', impact: 'high',
     cadence: 'Yılda 4 kez (Şubat, Mayıs, Ağustos, Kasım)',
-    what: 'TCMB başkanının enflasyon tahminini ve para politikası planını sunduğu kapsamlı rapor + basın toplantısı.',
-    why: 'Faiz kararından çok daha geniş bir politika resmi sunar. Tahmin revizyonları piyasayı uzun süre yönlendirir.',
-    reaction: 'Yıl sonu enflasyon tahmini yukarı revize: TL satış, BIST düşüş, tahvil faizleri sıçrar. Aşağı revize: TL alım, BIST yukarı.'
+    what: 'TCMB başkanının yılda 4 kez yaptığı kapsamlı sunum + basın toplantısı. İçeriği:\n• Yıl sonu enflasyon tahmini\n• Para politikası planı\n• Risk faktörleri\n\nFaiz kararından farklı — sadece "faiz şu" demek yerine, gelecek 12 ayın yol haritası.',
+    why: 'Tek bir faiz kararından çok daha geniş resim sunar. Tahmin revizyonları (yıl sonu enflasyonu %35\'ten %40\'a yükseltildi gibi) piyasayı haftalarca yönlendirir.\n\nÖnemli: Sadece rakamı değil başkanın tonunu da takip edilir. "Sıkı duruşumuzu sürdürüyoruz" mesajı önemli.',
+    reaction: 'Yıl sonu tahmin YUKARI revize edilirse:\n• TL satışı, kur yukarı\n• BIST düşüş (sıkılaşma beklentisi)\n• Tahvil faizleri sıçrar\n\nAŞAĞI revize edilirse:\n• TL alım, kur aşağı\n• BIST rallisi\n• Tahvil rallisi'
   },
   {
     id: 'butce', country: 'TR', name: 'Merkezi Bütçe Dengesi', impact: 'low',
-    cadence: 'Her ayın yaklaşık 15-17\'sinde',
-    what: 'Hazine ve Maliye Bakanlığı\'nın aylık bütçe gelir-gider dengesi açıklaması.',
-    why: 'Mali disiplin göstergesi. Yüksek bütçe açığı → tahvil arzı baskısı, faiz yukarı.',
-    reaction: 'Genelde sınırlı piyasa tepkisi. Ama beklenmeyen büyük açık → tahvil satışı, banka hisseleri etkilenir.'
+    cadence: 'Her ayın yaklaşık 15-17\'sinde, Hazine ve Maliye Bakanlığı',
+    what: 'Devletin aylık geliri (vergi vs.) ile gideri (maaş, yatırım vs.) arasındaki fark. Açık (gider > gelir) veya fazla.\n\nMesela: Geçen ay devlet 350 milyar TL toplayıp 380 milyar TL harcadıysa, bütçe açığı 30 milyar TL.',
+    why: 'Mali disiplin göstergesi. Yüksek bütçe açığı → devlet daha çok tahvil çıkarmak zorunda → tahvil faizleri yükselir → faiz piyasası gerilir.',
+    reaction: 'Genelde sınırlı piyasa tepkisi.\n\nAma beklenmeyen büyük açık:\n• Tahvil satışı (faizler yükselir)\n• Banka hisseleri etkilenir (banka portföylerinde tahvil var)\n• Genel piyasaya hafif olumsuz'
   },
   {
     id: 'ism', country: 'US', name: 'ISM Manufacturing Index', impact: 'medium',
-    cadence: 'Her ayın ilk iş günü, sabah 10:00 ET',
-    what: 'ABD imalat sektörü yöneticilerinin görüşlerini ölçen endeks. PMI\'nın ABD versiyonu.',
-    why: '50 altı kalıcılaşınca tarihsel olarak resesyon habercisi. Sub-indeksleri (yeni siparişler, fiyatlar) ayrıca takip edilir.',
-    reaction: '50 altına düşüş: resesyon kaygısı, hisse satış, savunma sektörü görece güçlü. Fiyat sub-endeksi yüksek: enflasyonist sinyal.'
+    cadence: 'Her ayın ilk iş günü, 17:00 TR saati',
+    what: 'ISM = Institute for Supply Management. ABD\'de imalat sektörü için aylık anket.\n\nPMI\'a benzer (aynı 50 eşiği): 50 üstü genişleme, altı daralma. ABD\'nin özel olarak takip edilen versiyonu bu.\n\nİçinde alt endeksler var: yeni siparişler, fiyatlar, istihdam. Bunlar ayrı ayrı sinyal verebilir.',
+    why: '50 altı kalıcılaşınca tarihsel olarak resesyon habercisi olmuş. Özellikle "yeni siparişler" alt endeksi öncü.\n\n"Fiyatlar ödenen" alt endeksi yüksekse enflasyonist baskı sinyali — Fed dikkat eder.',
+    reaction: '50 ALTINA düşüş:\n• Resesyon kaygısı\n• Hisse satış (özellikle döngüsel: otomotiv, sanayi)\n• Savunma sektörü görece güçlü\n• Tahvil rallisi (faiz indirim umudu)\n\nFiyat alt endeksi yüksekse: enflasyon endişesi → tahvil faizleri yükselir.'
   }
 ];
 
@@ -1935,9 +1995,9 @@ function renderEventTypes() {
       <div class="day">${flagFor(t.country)} ${t.country} · ${t.impact === 'high' ? 'YÜKSEK ETKİ' : t.impact === 'medium' ? 'ORTA ETKİ' : 'DÜŞÜK ETKİ'} · ${t.cadence}</div>
       <div class="title">${t.name}</div>
       <div class="body">
-        <strong style="color:var(--fg);">Nedir:</strong> ${t.what}<br><br>
-        <strong style="color:var(--fg);">Niye önemli:</strong> ${t.why}<br><br>
-        <strong style="color:var(--fg);">Piyasa tepkisi:</strong> ${t.reaction}
+        <div style="margin-bottom:12px;"><strong style="color:var(--gold);">📌 Nedir?</strong>${fmtBody(t.what)}</div>
+        <div style="margin-bottom:12px;"><strong style="color:var(--gold);">💡 Niye önemli?</strong>${fmtBody(t.why)}</div>
+        <div><strong style="color:var(--gold);">📈 Piyasa tepkisi</strong>${fmtBody(t.reaction)}</div>
       </div>
     </div>
   `).join('') || '<div class="empty">Eşleşme yok.</div>';
@@ -1976,6 +2036,10 @@ const GLOSSARY = [
   ['Market cap', 'Piyasa değeri. Fiyat × hisse sayısı.']
 ];
 
+function fmtBody(s) {
+  return (s || '').split('\n\n').map(p => '<p style="margin: 0 0 10px;">' + p.replace(/\n/g, '<br>') + '</p>').join('');
+}
+
 function renderEdu() {
   const dayIdx = Math.floor((Date.now() / 86400000)) % CONCEPTS.length;
   const c = CONCEPTS[dayIdx];
@@ -1984,14 +2048,14 @@ function renderEdu() {
       <div class="day">Gün ${dayIdx + 1} / ${CONCEPTS.length}</div>
       <div class="title">${c.t}</div>
       <span class="tag">${c.tag}</span>
-      <div class="body" style="margin-top:10px;">${c.body}</div>
+      <div class="body" style="margin-top:10px;">${fmtBody(c.body)}</div>
     </div>
   `;
   document.getElementById('conceptList').innerHTML = CONCEPTS.map((c,i) => `
     <div class="concept-card" style="border-left-width:1px;">
       <div class="day">#${i+1} · ${c.tag}</div>
       <div class="title" style="font-size:14px;">${c.t}</div>
-      <div class="body" style="font-size:13px; margin-top:6px;">${c.body}</div>
+      <div class="body" style="font-size:13px; margin-top:6px;">${fmtBody(c.body)}</div>
     </div>
   `).join('');
   renderGlossary();
