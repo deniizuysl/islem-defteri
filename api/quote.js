@@ -2,33 +2,22 @@ export const config = { runtime: 'edge' };
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-function normalizeSymbol(s) {
-  const u = s.trim().toUpperCase();
-  if (u.includes('.')) return u;
-  // BIST symbols are typically 4-5 uppercase letters with no vowels often (THYAO is exception)
-  // Safer heuristic: if it's not a known US ticker pattern, try .IS
-  // We'll just trust common conventions: AAPL, NVDA, TSLA, MSFT, GOOGL, AMZN, META are US
-  const knownUS = ['AAPL','NVDA','TSLA','MSFT','GOOGL','GOOG','AMZN','META','AVGO','NFLX','AMD','INTC','BRK-B','JPM','V','MA','UNH','HD','PG','JNJ','XOM','CVX','WMT','BAC','PFE','KO','PEP','CSCO','ORCL','CRM','ADBE','QCOM','TXN','COST','MRK','ABBV','TMO','ABT','LLY','MCD','NKE','DIS','BA','GE','CAT','UPS','HON','LOW','MS','GS','AXP','BLK','SPGI','NOW','UBER','ABNB','PYPL','SHOP','SQ','PLTR','SOFI','RIVN','LCID','F','GM','T','VZ','CMCSA','TMUS'];
-  if (knownUS.includes(u)) return u;
-  // Default to BIST .IS suffix
-  return u + '.IS';
-}
-
-async function fetchOne(sym) {
+async function tryFetch(sym) {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
     const r = await fetch(url, {
       headers: { 'User-Agent': UA, 'Accept': 'application/json', 'Referer': 'https://finance.yahoo.com/' }
     });
-    if (!r.ok) return { symbol: sym, error: 'http ' + r.status };
+    if (!r.ok) return null;
     const data = await r.json();
     const result = data?.chart?.result?.[0];
-    if (!result) return { symbol: sym, error: 'no data' };
-    const meta = result.meta || {};
+    if (!result || !result.meta) return null;
+    const meta = result.meta;
     const price = meta.regularMarketPrice;
+    if (price == null) return null;
     const prev = meta.chartPreviousClose || meta.previousClose;
     const change = price - prev;
-    const changePct = (change / prev) * 100;
+    const changePct = prev ? (change / prev) * 100 : 0;
     return {
       symbol: sym,
       shortName: meta.shortName || meta.longName || sym,
@@ -43,9 +32,27 @@ async function fetchOne(sym) {
       volume: meta.regularMarketVolume,
       time: meta.regularMarketTime
     };
-  } catch (e) {
-    return { symbol: sym, error: String(e) };
+  } catch (e) { return null; }
+}
+
+async function fetchOne(rawSym) {
+  const sym = rawSym.trim().toUpperCase();
+
+  // 1. If user already specified .IS or another exchange suffix, use it directly
+  if (sym.includes('.')) {
+    const r = await tryFetch(sym);
+    return r || { symbol: sym, error: 'no data' };
   }
+
+  // 2. Try as-is first (covers all US tickers — common case)
+  let r = await tryFetch(sym);
+  if (r) return r;
+
+  // 3. Fallback: try with .IS suffix (BIST)
+  r = await tryFetch(sym + '.IS');
+  if (r) return r;
+
+  return { symbol: sym, error: 'no data' };
 }
 
 export default async function handler(req) {
@@ -57,8 +64,7 @@ export default async function handler(req) {
     });
   }
 
-  const symbols = raw.map(normalizeSymbol);
-  const quotes = await Promise.all(symbols.map(fetchOne));
+  const quotes = await Promise.all(raw.map(fetchOne));
 
   return new Response(JSON.stringify({ quotes, ts: Date.now() }), {
     status: 200,
