@@ -781,7 +781,7 @@ function setupAutocomplete(inputId, dropId, onSelect) {
   input.dataset.onSelect = onSelect || '';
 }
 
-function selectAc(inputId, dropId, idx) {
+async function selectAc(inputId, dropId, idx) {
   const item = acSelected[inputId]?.[idx];
   if (!item) return;
   const input = document.getElementById(inputId);
@@ -792,10 +792,26 @@ function selectAc(inputId, dropId, idx) {
 
   if (inputId === 'f_sym') {
     document.getElementById('f_mkt').value = item.market;
-    document.getElementById('f_sector_info').innerHTML = `<strong style="color:var(--gold);">${item.name}</strong>${item.sectorTR ? ' · ' + item.sectorTR : ''}${item.industry ? ' · ' + item.industry : ''}`;
+    document.getElementById('f_sector_info').innerHTML = `<strong style="color:var(--gold);">${item.name}</strong>${item.sectorTR ? ' · ' + item.sectorTR : ''}${item.industry ? ' · ' + item.industry : ''} · <em>fiyat çekiliyor...</em>`;
     window._lastSelectedSymbol = item;
+    document.getElementById('f_price').value = '';
+    document.getElementById('f_qty').value = '';
+    document.getElementById('f_amt').value = '';
     updateCurrency();
-    updateCostPreview();
+    try {
+      const r = await fetch('/api/quote?s=' + encodeURIComponent(item.symbol));
+      const data = await r.json();
+      const q = data.quotes?.[0];
+      if (q && q.price) {
+        document.getElementById('f_price').value = q.price.toFixed(q.price >= 100 ? 2 : 4);
+        document.getElementById('f_sector_info').innerHTML = `<strong style="color:var(--gold);">${item.name}</strong>${item.sectorTR ? ' · ' + item.sectorTR : ''}${item.industry ? ' · ' + item.industry : ''} · <span style="color:var(--green);">canlı fiyat: ${q.currency === 'TRY' ? '₺' : '$'}${q.price.toFixed(2)}</span>`;
+        updateCostPreview();
+      } else {
+        document.getElementById('f_sector_info').innerHTML = `<strong style="color:var(--gold);">${item.name}</strong>${item.sectorTR ? ' · ' + item.sectorTR : ''} · <span style="color:var(--red);">fiyat alınamadı</span>`;
+      }
+    } catch (e) {
+      document.getElementById('f_sector_info').innerHTML = `<strong style="color:var(--gold);">${item.name}</strong>${item.sectorTR ? ' · ' + item.sectorTR : ''}`;
+    }
   } else if (inputId === 'm_add') {
     addWatch();
   }
@@ -2275,6 +2291,19 @@ startQuotePolling();
 reconnectFinnhub();
 setupAutocomplete('f_sym', 'f_sym_drop');
 setupAutocomplete('m_add', 'm_add_drop');
+
+document.getElementById('f_sym').addEventListener('input', () => {
+  const typed = document.getElementById('f_sym').value.trim().toUpperCase();
+  const last = window._lastSelectedSymbol?.symbol.replace('.IS', '');
+  if (last && typed !== last) {
+    document.getElementById('f_price').value = '';
+    document.getElementById('f_qty').value = '';
+    document.getElementById('f_amt').value = '';
+    document.getElementById('f_sector_info').innerHTML = '<span style="color:var(--fg-3);">Aşağıdaki listeden seç → fiyat ve piyasa otomatik gelir</span>';
+    document.getElementById('costPreview').innerHTML = '';
+    window._lastSelectedSymbol = null;
+  }
+});
 
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) {
