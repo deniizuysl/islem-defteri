@@ -187,12 +187,21 @@
       </div>
       <div>
         <label>Giriş Fiyatı <span id="f_cur" class="pill">TL</span></label>
-        <input id="f_price" type="number" step="0.01" placeholder="0.00" oninput="updateCostPreview()" />
+        <input id="f_price" type="number" step="0.01" placeholder="0.00" oninput="onQtyChange()" />
       </div>
     </div>
 
-    <label>Adet</label>
-    <input id="f_qty" type="number" step="1" placeholder="100" oninput="updateCostPreview()" />
+    <div class="grid-2">
+      <div>
+        <label>Adet</label>
+        <input id="f_qty" type="number" step="0.0001" placeholder="0.4255" oninput="onQtyChange()" />
+      </div>
+      <div>
+        <label>Tutar <span id="f_amt_cur" class="pill">TL</span></label>
+        <input id="f_amt" type="number" step="0.01" placeholder="100" oninput="onAmtChange()" />
+      </div>
+    </div>
+    <div style="font-size:11px; color:var(--fg-3); margin-top:-4px;">Birini yaz, diğeri hesaplanır. Kesirli adet de olabilir (örn. $100 ile 0.42 NVDA).</div>
 
     <label>Tez (neden bu hisse, neden bugün) — min 20 karakter</label>
     <textarea id="f_thesis" placeholder="Tezini yaz. 'Sezgi' yeterli değil. Hangi gözlem, hangi haber, hangi göstergeyle?"></textarea>
@@ -611,7 +620,28 @@ function startQuotePolling() {
 // ============ CURRENCY UI ============
 function updateCurrency() {
   const mkt = document.getElementById('f_mkt').value;
-  document.getElementById('f_cur').textContent = mkt === 'BIST' ? 'TL' : 'USD';
+  const cur = mkt === 'BIST' ? 'TL' : 'USD';
+  document.getElementById('f_cur').textContent = cur;
+  document.getElementById('f_amt_cur').textContent = cur;
+  onQtyChange();
+}
+
+function onQtyChange() {
+  const price = parseFloat(document.getElementById('f_price').value);
+  const qty = parseFloat(document.getElementById('f_qty').value);
+  if (price && qty) {
+    document.getElementById('f_amt').value = (price * qty).toFixed(2);
+  }
+  updateCostPreview();
+}
+
+function onAmtChange() {
+  const price = parseFloat(document.getElementById('f_price').value);
+  const amt = parseFloat(document.getElementById('f_amt').value);
+  if (price && amt) {
+    const qty = amt / price;
+    document.getElementById('f_qty').value = qty >= 1 ? qty.toFixed(2) : qty.toFixed(4);
+  }
   updateCostPreview();
 }
 
@@ -674,6 +704,7 @@ function addTrade() {
   document.getElementById('f_sym').value = '';
   document.getElementById('f_price').value = '';
   document.getElementById('f_qty').value = '';
+  document.getElementById('f_amt').value = '';
   document.getElementById('f_thesis').value = '';
   document.getElementById('f_sector_info').innerHTML = '';
   document.getElementById('costPreview').innerHTML = '';
