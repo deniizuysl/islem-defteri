@@ -203,7 +203,15 @@
   </section>
 
   <section id="stat">
-    <h2>Performans</h2>
+    <h2 style="display:flex; align-items:center; justify-content:space-between;">
+      <span>Equity Curve</span>
+      <span id="eqRange" style="font-size:11px; color:var(--fg-3); font-family:Georgia;"></span>
+    </h2>
+    <div id="equityChart"></div>
+    <div id="equityLegend" style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; font-size:11px; color:var(--fg-2);"></div>
+    <div id="equitySummary" style="margin-top:12px;"></div>
+
+    <h2 style="margin-top: 28px;">Performans</h2>
     <div class="stat-grid">
       <div class="stat"><div class="label">Toplam İşlem</div><div class="val" id="s_total">0</div></div>
       <div class="stat"><div class="label">Win Rate</div><div class="val" id="s_wr">—</div></div>
@@ -256,6 +264,9 @@
 <div class="modal" id="settingsModal">
   <div class="modal-content">
     <h2>Ayarlar</h2>
+
+    <label>Başlangıç Sermayesi (TL)</label>
+    <input id="set_capital" type="number" step="100" />
 
     <label>USD/TRY Kuru</label>
     <input id="set_usdtry" type="number" step="0.01" />
@@ -331,7 +342,8 @@ const DEFAULTS = {
   bist_comm: 0.4,
   bsmv: 5,
   us_comm: 0.3,
-  fx: 1.0
+  fx: 1.0,
+  starting_capital: 10000
 };
 
 let state = {
@@ -785,8 +797,174 @@ function renderClosed() {
   }).join('');
 }
 
+// ============ EQUITY CURVE ============
+const benchmarkCache = {};
+
+async function fetchBenchmark(symbol, range) {
+  const key = symbol + '_' + range;
+  if (benchmarkCache[key]) return benchmarkCache[key];
+  try {
+    const r = await fetch('/api/history?s=' + encodeURIComponent(symbol) + '&range=' + range + '&interval=1d');
+    if (!r.ok) return null;
+    const data = await r.json();
+    benchmarkCache[key] = data;
+    return data;
+  } catch (e) { return null; }
+}
+
+function computeEquitySeries() {
+  const closed = state.trades.filter(t => t.closed).sort((a,b) => new Date(a.closed) - new Date(b.closed));
+  const cap = state.settings.starting_capital;
+  if (closed.length === 0) return { points: [], firstDate: null, lastDate: null };
+
+  const firstOpen = state.trades.reduce((earliest, t) => {
+    const d = new Date(t.opened);
+    return earliest === null || d < earliest ? d : earliest;
+  }, null);
+
+  const points = [{ t: firstOpen.getTime(), v: cap }];
+  let running = cap;
+  closed.forEach(t => {
+    running += t.result.netTL;
+    points.push({ t: new Date(t.closed).getTime(), v: running });
+  });
+  points.push({ t: Date.now(), v: running });
+  return { points, firstDate: firstOpen, lastDate: new Date(), running };
+}
+
+function pickRange(days) {
+  if (days <= 7) return '1mo';
+  if (days <= 30) return '3mo';
+  if (days <= 90) return '6mo';
+  if (days <= 180) return '1y';
+  if (days <= 365) return '2y';
+  return '5y';
+}
+
+async function renderEquityChart() {
+  const el = document.getElementById('equityChart');
+  const sum = computeEquitySeries();
+  if (sum.points.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="ico">◇</div>Henüz kapanmış işlem yok.<br>İlk işlemini kapatınca buradaki<br>grafik canlanır.</div>';
+    document.getElementById('equityLegend').innerHTML = '';
+    document.getElementById('equitySummary').innerHTML = '';
+    document.getElementById('eqRange').textContent = '';
+    return;
+  }
+
+  const days = Math.max(1, Math.ceil((sum.lastDate - sum.firstDate) / 86400000));
+  document.getElementById('eqRange').textContent = sum.firstDate.toLocaleDateString('tr-TR', {day:'numeric', month:'short'}) + ' → şimdi · ' + days + ' gün';
+
+  el.innerHTML = '<div style="height:240px; display:flex; align-items:center; justify-content:center; color:var(--fg-3); font-size:13px;">benchmark yükleniyor...</div>';
+
+  const yfRange = pickRange(days);
+  const [bist, ndx] = await Promise.all([
+    fetchBenchmark('XU100.IS', yfRange),
+    fetchBenchmark('^NDX', yfRange)
+  ]);
+
+  const startMs = sum.firstDate.getTime();
+  const endMs = sum.lastDate.getTime();
+
+  function normalize(series) {
+    if (!series || !series.series || series.series.length === 0) return null;
+    const filtered = series.series.filter(p => p.t >= startMs - 86400000 && p.t <= endMs + 86400000);
+    if (filtered.length < 2) return null;
+    const base = filtered[0].c;
+    return filtered.map(p => ({ t: p.t, v: state.settings.starting_capital * (p.c / base) }));
+  }
+
+  const bistLine = normalize(bist);
+  const ndxLine = normalize(ndx);
+
+  const lines = [
+    { name: 'Sistem', color: '#C8A046', width: 2.5, points: sum.points, last: sum.points[sum.points.length - 1].v },
+    bistLine && { name: 'BIST 100', color: '#7B8B4A', width: 1.5, points: bistLine, last: bistLine[bistLine.length - 1].v, dash: '4 3' },
+    ndxLine && { name: 'Nasdaq 100', color: '#5A7A8A', width: 1.5, points: ndxLine, last: ndxLine[ndxLine.length - 1].v, dash: '2 3' }
+  ].filter(Boolean);
+
+  const allPts = lines.flatMap(l => l.points);
+  const yMin = Math.min(...allPts.map(p => p.v));
+  const yMax = Math.max(...allPts.map(p => p.v));
+  const yPad = (yMax - yMin) * 0.1 || yMax * 0.05 || 100;
+  const yLo = yMin - yPad;
+  const yHi = yMax + yPad;
+  const xMin = Math.min(...allPts.map(p => p.t));
+  const xMax = Math.max(...allPts.map(p => p.t));
+
+  const W = 720, H = 240, padL = 50, padR = 16, padT = 12, padB = 28;
+  const plotW = W - padL - padR;
+  const plotH = H - padT - padB;
+
+  const xScale = t => padL + ((t - xMin) / (xMax - xMin || 1)) * plotW;
+  const yScale = v => padT + (1 - (v - yLo) / (yHi - yLo)) * plotH;
+
+  const startY = yScale(state.settings.starting_capital);
+
+  const yTicks = [];
+  for (let i = 0; i <= 4; i++) {
+    const v = yLo + (yHi - yLo) * (i / 4);
+    yTicks.push({ v, y: yScale(v) });
+  }
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%; height:240px; display:block;">`;
+  svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="#181613" rx="4"/>`;
+  yTicks.forEach(t => {
+    svg += `<line x1="${padL}" y1="${t.y}" x2="${W-padR}" y2="${t.y}" stroke="#2A2620" stroke-width="0.5"/>`;
+    svg += `<text x="${padL - 6}" y="${t.y + 3}" text-anchor="end" fill="#807868" font-size="9" font-family="Georgia">${Math.round(t.v).toLocaleString('tr-TR')}</text>`;
+  });
+  svg += `<line x1="${padL}" y1="${startY}" x2="${W-padR}" y2="${startY}" stroke="#807868" stroke-width="0.5" stroke-dasharray="2 2"/>`;
+  svg += `<text x="${W - padR - 4}" y="${startY - 4}" text-anchor="end" fill="#807868" font-size="9" font-style="italic">başlangıç</text>`;
+
+  lines.forEach(l => {
+    const path = l.points.map((p, i) => (i === 0 ? 'M' : 'L') + xScale(p.t).toFixed(1) + ',' + yScale(p.v).toFixed(1)).join(' ');
+    const dash = l.dash ? `stroke-dasharray="${l.dash}"` : '';
+    svg += `<path d="${path}" fill="none" stroke="${l.color}" stroke-width="${l.width}" stroke-linejoin="round" ${dash}/>`;
+    const last = l.points[l.points.length - 1];
+    svg += `<circle cx="${xScale(last.t).toFixed(1)}" cy="${yScale(last.v).toFixed(1)}" r="3" fill="${l.color}"/>`;
+  });
+
+  const startStr = sum.firstDate.toLocaleDateString('tr-TR', {day:'numeric', month:'short'});
+  const endStr = sum.lastDate.toLocaleDateString('tr-TR', {day:'numeric', month:'short'});
+  svg += `<text x="${padL}" y="${H - 8}" fill="#807868" font-size="10" font-family="Georgia">${startStr}</text>`;
+  svg += `<text x="${W - padR}" y="${H - 8}" text-anchor="end" fill="#807868" font-size="10" font-family="Georgia">${endStr}</text>`;
+
+  svg += '</svg>';
+  el.innerHTML = svg;
+
+  document.getElementById('equityLegend').innerHTML = lines.map(l => {
+    const ret = ((l.last - state.settings.starting_capital) / state.settings.starting_capital) * 100;
+    const cls = ret >= 0 ? 'pos' : 'neg';
+    return `<div style="display:flex; align-items:center; gap:6px;">
+      <span style="display:inline-block; width:14px; height:2px; background:${l.color}; ${l.dash ? 'border-top:1px dashed '+l.color+'; background:transparent; height:0;' : ''}"></span>
+      <span>${l.name}</span>
+      <span class="pnl ${cls}">${ret >= 0 ? '+' : ''}${ret.toFixed(1)}%</span>
+    </div>`;
+  }).join('');
+
+  const sistemRet = ((sum.points[sum.points.length-1].v - state.settings.starting_capital) / state.settings.starting_capital) * 100;
+  let verdict = '';
+  if (bistLine && ndxLine) {
+    const bistRet = ((bistLine[bistLine.length-1].v - state.settings.starting_capital) / state.settings.starting_capital) * 100;
+    const ndxRet = ((ndxLine[ndxLine.length-1].v - state.settings.starting_capital) / state.settings.starting_capital) * 100;
+    const bestBench = Math.max(bistRet, ndxRet);
+    const diff = sistemRet - bestBench;
+    if (sum.points.length < 5) {
+      verdict = `<div class="info">Henüz ${sum.points.length - 1} kapanmış işlem var — anlamlı kıyaslama için en az 20-30 işlem gerek. Sabırla devam.</div>`;
+    } else if (diff > 5) {
+      verdict = `<div class="info" style="border-color:var(--green); color:var(--green);">✓ Sistem en iyi endeksi <strong>%${diff.toFixed(1)}</strong> geçiyor. Bu örneklem hâlâ küçük olabilir, ama tabela pozitif.</div>`;
+    } else if (diff < -5) {
+      verdict = `<div class="warn">Sistem en iyi endeksten <strong>%${Math.abs(diff).toFixed(1)}</strong> geride. Aktif trading değer üretmiyor — bu para endekste daha iyi olurdu.</div>`;
+    } else {
+      verdict = `<div class="info">Sistem endekslere yakın seyrediyor. Aktif emeğin karşılığını alıp almadığın belirsiz — örneklem büyüyünce netleşir.</div>`;
+    }
+  }
+  document.getElementById('equitySummary').innerHTML = verdict;
+}
+
 // ============ STATS ============
 function renderStats() {
+  renderEquityChart();
   const closed = state.trades.filter(t => t.closed);
   document.getElementById('s_total').textContent = closed.length;
   if (closed.length === 0) {
@@ -832,6 +1010,7 @@ function renderStats() {
 
 // ============ SETTINGS ============
 function openSettings() {
+  document.getElementById('set_capital').value = state.settings.starting_capital;
   document.getElementById('set_usdtry').value = state.settings.usdtry;
   document.getElementById('set_bracket').value = state.settings.bracket;
   document.getElementById('set_bist_comm').value = state.settings.bist_comm;
@@ -842,6 +1021,7 @@ function openSettings() {
 }
 function closeSettings() { document.getElementById('settingsModal').classList.remove('active'); }
 function saveSettings() {
+  state.settings.starting_capital = parseFloat(document.getElementById('set_capital').value) || DEFAULTS.starting_capital;
   state.settings.usdtry = parseFloat(document.getElementById('set_usdtry').value) || DEFAULTS.usdtry;
   state.settings.bracket = parseInt(document.getElementById('set_bracket').value);
   state.settings.bist_comm = parseFloat(document.getElementById('set_bist_comm').value) || DEFAULTS.bist_comm;
