@@ -104,6 +104,18 @@
 
   .empty { text-align: center; color: var(--fg-3); padding: 40px 20px; font-size: 14px; }
   .empty .ico { font-size: 32px; color: var(--gold-2); margin-bottom: 12px; }
+
+  .ac-wrap { position: relative; }
+  .ac-drop { position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-2); border: 1px solid var(--gold-2); border-top: none; border-radius: 0 0 4px 4px; max-height: 280px; overflow-y: auto; z-index: 20; display: none; }
+  .ac-drop.show { display: block; }
+  .ac-item { padding: 10px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover, .ac-item.sel { background: var(--bg-3); }
+  .ac-item .sym { color: var(--gold); font-size: 14px; }
+  .ac-item .mkt { font-size: 10px; color: var(--fg-3); margin-left: 8px; letter-spacing: 1px; text-transform: uppercase; }
+  .ac-item .name { color: var(--fg-2); font-size: 12px; margin-top: 2px; }
+  .ac-item .sec { color: var(--fg-3); font-size: 11px; margin-top: 2px; }
+  .ac-loading { padding: 10px 12px; color: var(--fg-3); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -135,8 +147,11 @@
       <span>Piyasa</span>
       <span id="marketStatus" style="font-size:11px; color:var(--fg-3); font-family:Georgia;"></span>
     </h2>
-    <div style="display:flex; gap:8px;">
-      <input id="m_add" placeholder="Sembol ekle: THYAO, AAPL..." style="flex:1;" />
+    <div class="ac-wrap" style="display:flex; gap:8px;">
+      <div style="flex:1; position:relative;">
+        <input id="m_add" placeholder="Sembol ekle: THYAO, AAPL..." autocomplete="off" />
+        <div class="ac-drop" id="m_add_drop"></div>
+      </div>
       <button class="icon-btn" onclick="addWatch()" style="flex:none; width:auto; padding:0 16px;">+</button>
     </div>
     <div id="watchList" style="margin-top:14px;"></div>
@@ -156,7 +171,11 @@
     </select>
 
     <label>Sembol</label>
-    <input id="f_sym" placeholder="THYAO, AAPL, NVDA..." />
+    <div class="ac-wrap">
+      <input id="f_sym" placeholder="THYAO, AAPL, NVDA... (yazınca öneriler)" autocomplete="off" />
+      <div class="ac-drop" id="f_sym_drop"></div>
+    </div>
+    <div id="f_sector_info" style="font-size: 11px; color: var(--fg-3); margin-top: 4px;"></div>
 
     <div class="grid-2">
       <div>
@@ -396,6 +415,73 @@ function switchTab(t) {
   if (t === 'log') renderClosed();
 }
 
+// ============ AUTOCOMPLETE ============
+let acTimers = {};
+let acSelected = {};
+
+function setupAutocomplete(inputId, dropId, onSelect) {
+  const input = document.getElementById(inputId);
+  const drop = document.getElementById(dropId);
+  if (!input || !drop) return;
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    if (q.length < 1) { drop.classList.remove('show'); return; }
+    clearTimeout(acTimers[inputId]);
+    drop.innerHTML = '<div class="ac-loading">aranıyor...</div>';
+    drop.classList.add('show');
+    acTimers[inputId] = setTimeout(async () => {
+      try {
+        const r = await fetch('/api/search?q=' + encodeURIComponent(q));
+        const data = await r.json();
+        if (!data.results || data.results.length === 0) {
+          drop.innerHTML = '<div class="ac-loading">eşleşme yok</div>';
+          return;
+        }
+        drop.innerHTML = data.results.map((x, i) => {
+          const sym = x.symbol.replace('.IS', '');
+          return `
+            <div class="ac-item" data-idx="${i}" onclick="selectAc('${inputId}', '${dropId}', ${i})">
+              <div><span class="sym">${sym}</span><span class="mkt">${x.market}</span></div>
+              <div class="name">${x.name}</div>
+              ${x.sectorTR ? `<div class="sec">${x.sectorTR}${x.industry ? ' · ' + x.industry : ''}</div>` : ''}
+            </div>
+          `;
+        }).join('');
+        acSelected[inputId] = data.results;
+      } catch (e) {
+        drop.innerHTML = '<div class="ac-loading">hata</div>';
+      }
+    }, 220);
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => drop.classList.remove('show'), 200);
+  });
+
+  input.dataset.onSelect = onSelect || '';
+}
+
+function selectAc(inputId, dropId, idx) {
+  const item = acSelected[inputId]?.[idx];
+  if (!item) return;
+  const input = document.getElementById(inputId);
+  const drop = document.getElementById(dropId);
+  const cleanSym = item.symbol.replace('.IS', '');
+  input.value = cleanSym;
+  drop.classList.remove('show');
+
+  if (inputId === 'f_sym') {
+    document.getElementById('f_mkt').value = item.market;
+    document.getElementById('f_sector_info').innerHTML = `<strong style="color:var(--gold);">${item.name}</strong>${item.sectorTR ? ' · ' + item.sectorTR : ''}${item.industry ? ' · ' + item.industry : ''}`;
+    window._lastSelectedSymbol = item;
+    updateCurrency();
+    updateCostPreview();
+  } else if (inputId === 'm_add') {
+    addWatch();
+  }
+}
+
 // ============ WATCHLIST ============
 let quoteCache = {};
 let quoteTimer = null;
@@ -555,9 +641,14 @@ function addTrade() {
   if (!qty || qty <= 0) return alert('Geçerli adet gir');
   if (thesis.length < 20) return alert('Tez en az 20 karakter olmalı. Neden bu hisse?');
 
+  const meta = window._lastSelectedSymbol && (window._lastSelectedSymbol.symbol.replace('.IS','') === sym) ? window._lastSelectedSymbol : null;
+
   state.trades.push({
     id: Date.now(),
     mkt, sym, side, entry, qty, thesis,
+    name: meta?.name || sym,
+    sector: meta?.sectorTR || '',
+    industry: meta?.industry || '',
     current: entry,
     opened: new Date().toISOString(),
     closed: null
@@ -568,7 +659,9 @@ function addTrade() {
   document.getElementById('f_price').value = '';
   document.getElementById('f_qty').value = '';
   document.getElementById('f_thesis').value = '';
+  document.getElementById('f_sector_info').innerHTML = '';
   document.getElementById('costPreview').innerHTML = '';
+  window._lastSelectedSymbol = null;
   switchTab('dash');
 }
 
@@ -589,6 +682,7 @@ function renderOpen() {
           <div><span class="sym">${t.sym}</span><span class="mkt">${t.mkt} · ${t.side}</span></div>
           <div class="pnl ${cls}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
         </div>
+        ${t.sector ? `<div style="font-size:11px; color:var(--fg-3); margin-top:4px;">${t.name || ''} · ${t.sector}</div>` : ''}
         <div class="meta">
           ${t.qty} × ${fmt(t.entry, c.currency)} → ${fmt(t.current, c.currency)}
           <br>NET: <span class="pnl ${cls}">${fmt(c.netTL, 'TL')}</span>
@@ -1099,6 +1193,8 @@ load();
 updateCurrency();
 renderOpen();
 startQuotePolling();
+setupAutocomplete('f_sym', 'f_sym_drop');
+setupAutocomplete('m_add', 'm_add_drop');
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
