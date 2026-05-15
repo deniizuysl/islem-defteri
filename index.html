@@ -230,6 +230,10 @@
     </div>
 
     <div id="taxWarn"></div>
+
+    <h2 style="margin-top: 28px;">Desenler — Nerede Kazanıyorsun?</h2>
+    <div id="patternHint"></div>
+    <div id="patternBreakdown"></div>
   </section>
 
   <section id="cal">
@@ -999,6 +1003,8 @@ function renderStats() {
   document.getElementById('q_lucky').textContent = q.lucky;
   document.getElementById('q_lesson').textContent = q.lesson;
 
+  renderPatterns(closed);
+
   const usTrades = closed.filter(t => t.mkt !== 'BIST' && t.result.grossTL > 0);
   if (usTrades.length > 0) {
     const usProfit = usTrades.reduce((a,t) => a + t.result.grossTL - t.result.commTL - t.result.fxTL, 0);
@@ -1006,6 +1012,102 @@ function renderStats() {
   } else {
     document.getElementById('taxWarn').innerHTML = '';
   }
+}
+
+// ============ PATTERN ANALYSIS ============
+function renderPatterns(closed) {
+  const hint = document.getElementById('patternHint');
+  const wrap = document.getElementById('patternBreakdown');
+
+  if (closed.length === 0) {
+    hint.innerHTML = '<div class="info">Henüz kapanmış işlem yok. İlk birkaç işlemini kapatınca burada gruplama başlar. 20+ işlem sonra net desenler ortaya çıkar.</div>';
+    wrap.innerHTML = '';
+    return;
+  }
+
+  if (closed.length < 5) {
+    hint.innerHTML = `<div class="info">${closed.length} kapanmış işlem var. Aşağıdaki rakamlar küçük örneklem — istatistiksel olarak hâlâ gürültü. 20+ olunca gerçek desen çıkar.</div>`;
+  } else if (closed.length < 20) {
+    hint.innerHTML = `<div class="info">${closed.length} kapanmış işlem. Trend görmeye yetebilir ama kesin yargı için 20+ gerek.</div>`;
+  } else {
+    hint.innerHTML = `<div class="info" style="border-color:var(--green); color:var(--green);">${closed.length} kapanmış işlem — istatistiksel olarak anlamlı örneklem.</div>`;
+  }
+
+  const dayNames = ['Pazar', 'Pzt', 'Salı', 'Çar', 'Per', 'Cuma', 'Cmt'];
+
+  function groupBy(items, getKey) {
+    const groups = {};
+    items.forEach(t => {
+      const key = getKey(t) || '—';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(t);
+    });
+    return Object.entries(groups).map(([key, items]) => {
+      const wins = items.filter(t => t.result.netTL > 0).length;
+      const totalNet = items.reduce((a, t) => a + t.result.netTL, 0);
+      return {
+        key,
+        n: items.length,
+        wr: (wins / items.length) * 100,
+        totalNet,
+        avgNet: totalNet / items.length
+      };
+    }).sort((a, b) => b.totalNet - a.totalNet);
+  }
+
+  function renderGroup(title, groups, minN = 1) {
+    const valid = groups.filter(g => g.n >= minN);
+    if (valid.length === 0) return '';
+    let html = `<h3 style="margin-top:18px; margin-bottom:8px;">${title}</h3>`;
+    html += '<table class="cost-table" style="font-size:12px;">';
+    html += `<tr style="color:var(--fg-3); font-size:10px; text-transform:uppercase; letter-spacing:1px;">
+      <td>Grup</td><td style="text-align:right;">N</td><td style="text-align:right;">WR</td><td style="text-align:right;">Top NET</td>
+    </tr>`;
+    valid.forEach(g => {
+      const cls = g.totalNet >= 0 ? 'pos' : 'neg';
+      html += `<tr>
+        <td>${g.key}</td>
+        <td style="text-align:right; color:var(--fg-2);">${g.n}</td>
+        <td style="text-align:right; color:var(--fg-2);">${g.wr.toFixed(0)}%</td>
+        <td style="text-align:right;" class="pnl ${cls}">${fmt(g.totalNet, 'TL')}</td>
+      </tr>`;
+    });
+    html += '</table>';
+    return html;
+  }
+
+  let html = '';
+  html += renderGroup('Piyasaya göre', groupBy(closed, t => t.mkt));
+  html += renderGroup('Sektöre göre', groupBy(closed, t => t.sector));
+  html += renderGroup('Yöne göre', groupBy(closed, t => t.side === 'long' ? 'Long' : 'Short'));
+  html += renderGroup('Haftanın gününe göre', groupBy(closed, t => dayNames[new Date(t.opened).getDay()]));
+  html += renderGroup('Çıkış sebebine göre', groupBy(closed, t => ({
+    hedef: 'Hedef ✓', stop: 'Stop', tez_degisti: 'Tez değişti', duygusal: 'Duygusal', firsat: 'Fırsat', zaman: 'Zaman'
+  }[t.reason] || t.reason)));
+  html += renderGroup('Tez kalitesine göre', groupBy(closed, t => ({
+    dogru: 'Tez ✓ doğruydu', yanlis: 'Tez ✗ yanlıştı', belirsiz: 'Belirsiz'
+  }[t.thesis_eval] || '—')));
+
+  let insight = '';
+  if (closed.length >= 5) {
+    const allGroups = [
+      ...groupBy(closed, t => 'Sektör: ' + t.sector).filter(g => g.n >= 2 && g.key !== 'Sektör: —'),
+      ...groupBy(closed, t => 'Gün: ' + dayNames[new Date(t.opened).getDay()]).filter(g => g.n >= 2),
+      ...groupBy(closed, t => 'Piyasa: ' + t.mkt).filter(g => g.n >= 2)
+    ];
+    if (allGroups.length > 0) {
+      const worst = allGroups.sort((a, b) => a.totalNet - b.totalNet)[0];
+      const best = allGroups.sort((a, b) => b.totalNet - a.totalNet)[0];
+      if (worst.totalNet < 0 && worst.wr < 40) {
+        insight += `<div class="warn" style="margin-top:14px;">⚠ Zayıf nokta: <strong>${worst.key}</strong> — ${worst.n} işlem, %${worst.wr.toFixed(0)} WR, ${fmt(worst.totalNet,'TL')}. Bu kategoride dikkatli ol.</div>`;
+      }
+      if (best.totalNet > 0 && best.wr > 60) {
+        insight += `<div class="info" style="border-color:var(--green); color:var(--green); margin-top:8px;">✓ Güçlü nokta: <strong>${best.key}</strong> — ${best.n} işlem, %${best.wr.toFixed(0)} WR, ${fmt(best.totalNet,'TL')}.</div>`;
+      }
+    }
+  }
+
+  wrap.innerHTML = html + insight;
 }
 
 // ============ SETTINGS ============
