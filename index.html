@@ -248,6 +248,7 @@
       <span>Piyasa</span>
       <span id="marketStatus" style="font-size:11px; color:var(--fg-3); font-family:Georgia;"></span>
     </h2>
+    <div id="liveStatus" style="font-size:10px; letter-spacing:1px; color:var(--fg-3); margin-bottom:8px; height:14px;"></div>
     <div class="ac-wrap" style="display:flex; gap:8px;">
       <div style="flex:1; position:relative;">
         <input id="m_add" placeholder="Sembol ekle: THYAO, AAPL..." autocomplete="off" />
@@ -374,6 +375,17 @@
 
 </div>
 
+<!-- Chart Modal -->
+<div class="modal" id="chartModal">
+  <div class="modal-content" style="max-width: 720px; padding: 16px;">
+    <h2 style="margin: 0 0 12px; display:flex; justify-content:space-between; align-items:baseline;">
+      <span id="chartTitle"></span>
+      <button class="icon-btn" onclick="closeChart()" style="width:32px; height:32px;">×</button>
+    </h2>
+    <div id="tvContainer"></div>
+  </div>
+</div>
+
 <!-- Settings Modal -->
 <div class="modal" id="settingsModal">
   <div class="modal-content">
@@ -405,6 +417,16 @@
 
     <label>Döviz Dönüşüm (% giriş+çıkış toplam)</label>
     <input id="set_fx" type="number" step="0.01" />
+
+    <div style="margin: 18px 0 8px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 11px; letter-spacing: 2px; color: var(--gold); text-transform: uppercase;">Canlı Veri</div>
+
+    <label>Polling Hızı (saniye, 5-60)</label>
+    <input id="set_poll" type="number" min="5" max="60" step="1" />
+    <div style="font-size:11px; color:var(--fg-3); margin-top:4px;">Watchlist tazelenme aralığı. Düşük = daha canlı, daha fazla istek.</div>
+
+    <label>Finnhub API Key (opsiyonel)</label>
+    <input id="set_finnhub" type="text" placeholder="finnhub.io üzerinden ücretsiz" />
+    <div style="font-size:11px; color:var(--fg-3); margin-top:4px;">ABD hisseleri için gerçek zamanlı WebSocket. Boş bırakırsan Yahoo gecikmeli polling kullanılır.</div>
 
     <button class="btn" onclick="saveSettings()">Kaydet</button>
     <button class="btn secondary" onclick="closeSettings()">İptal</button>
@@ -457,7 +479,9 @@ const DEFAULTS = {
   bsmv: 5,
   us_comm: 0.3,
   fx: 1.0,
-  starting_capital: 10000
+  starting_capital: 10000,
+  finnhub_key: '',
+  poll_seconds: 15
 };
 
 let state = {
@@ -729,6 +753,9 @@ function selectAc(inputId, dropId, idx) {
 let quoteCache = {};
 let quoteTimer = null;
 let prevPrices = {};
+let finnhubWS = null;
+let finnhubSubs = new Set();
+let renderThrottle = null;
 
 function renderWatchlist() {
   const el = document.getElementById('watchList');
@@ -759,9 +786,12 @@ function renderWatchlist() {
         <div class="row">
           <div>
             <span class="sym">${sym}</span>
-            <span class="mkt">${isUS ? 'US' : 'BIST'}${q.marketState && q.marketState !== 'REGULAR' ? ' · ' + q.marketState : ''}</span>
+            <span class="mkt">${isUS ? 'US' : 'BIST'}${q.source === 'finnhub' ? ' · LIVE' : ''}${q.marketState && q.marketState !== 'REGULAR' && q.source !== 'finnhub' ? ' · ' + q.marketState : ''}</span>
           </div>
-          <button class="icon-btn" style="width:28px; height:28px; font-size:12px; padding:0;" onclick="event.stopPropagation(); removeWatch('${sym}')">×</button>
+          <div style="display:flex; gap:4px;">
+            <button class="icon-btn" style="width:28px; height:28px; font-size:13px; padding:0;" onclick="event.stopPropagation(); openChart('${sym}', '${isUS ? 'NASDAQ' : 'BIST'}')" title="Grafik">📊</button>
+            <button class="icon-btn" style="width:28px; height:28px; font-size:12px; padding:0;" onclick="event.stopPropagation(); removeWatch('${sym}')">×</button>
+          </div>
         </div>
         <div class="row" style="margin-top:8px; align-items:baseline;">
           <div style="font-size:20px; color:var(--fg);">${curSym}${priceFmt}</div>
@@ -831,12 +861,14 @@ function addWatch() {
   input.value = '';
   renderWatchlist();
   fetchQuotes();
+  reconnectFinnhub();
 }
 
 function removeWatch(sym) {
   state.watchlist = state.watchlist.filter(s => s !== sym);
   save();
   renderWatchlist();
+  reconnectFinnhub();
 }
 
 function useSymbol(sym, mkt, price) {
@@ -850,11 +882,135 @@ function useSymbol(sym, mkt, price) {
 
 function startQuotePolling() {
   if (quoteTimer) clearInterval(quoteTimer);
+  const interval = (state.settings.poll_seconds || 15) * 1000;
   quoteTimer = setInterval(() => {
+    if (document.hidden) return;
     const onMarket = document.getElementById('market')?.classList.contains('active');
     const onToday = document.getElementById('today')?.classList.contains('active');
     if (onMarket || onToday) fetchQuotes();
-  }, 60000);
+  }, interval);
+}
+
+// ============ FINNHUB WEBSOCKET (gerçek anlık ABD) ============
+function isUSSymbol(sym) {
+  const u = (sym || '').toUpperCase();
+  if (u.endsWith('.IS')) return false;
+  if (u.includes('.')) return false;
+  return /^[A-Z]{1,5}$/.test(u);
+}
+
+function getUSSymbols() {
+  const fromWatch = state.watchlist.filter(s => isUSSymbol(s)).map(s => s.toUpperCase());
+  const fromOpen = state.trades.filter(t => !t.closed && t.mkt !== 'BIST').map(t => t.sym.toUpperCase());
+  return [...new Set([...fromWatch, ...fromOpen])];
+}
+
+function reconnectFinnhub() {
+  if (finnhubWS) {
+    try { finnhubWS.close(); } catch (e) {}
+    finnhubWS = null;
+    finnhubSubs.clear();
+  }
+  if (!state.settings.finnhub_key) return;
+  const symbols = getUSSymbols();
+  if (symbols.length === 0) return;
+
+  try {
+    finnhubWS = new WebSocket('wss://ws.finnhub.io?token=' + encodeURIComponent(state.settings.finnhub_key));
+    finnhubWS.onopen = () => {
+      symbols.forEach(sym => {
+        finnhubWS.send(JSON.stringify({ type: 'subscribe', symbol: sym }));
+        finnhubSubs.add(sym);
+      });
+      updateLiveStatus();
+    };
+    finnhubWS.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'trade' && Array.isArray(msg.data)) {
+          msg.data.forEach(tr => {
+            const sym = tr.s;
+            const existing = quoteCache[sym] || {};
+            const prev = existing.price || prevPrices[sym];
+            const newPrice = tr.p;
+            if (prev !== undefined && Math.abs(newPrice - prev) > 0.0001) {
+              flashSymbol(sym, newPrice > prev ? 'pos' : 'neg');
+            }
+            prevPrices[sym] = newPrice;
+            quoteCache[sym] = {
+              ...existing,
+              symbol: sym,
+              price: newPrice,
+              change: existing.previousClose ? (newPrice - existing.previousClose) : 0,
+              changePct: existing.previousClose ? ((newPrice - existing.previousClose) / existing.previousClose) * 100 : 0,
+              time: Math.floor(tr.t / 1000),
+              source: 'finnhub'
+            };
+          });
+          throttledRender();
+        }
+      } catch (err) { console.warn('WS parse:', err); }
+    };
+    finnhubWS.onerror = (e) => { console.warn('Finnhub WS error:', e); updateLiveStatus(); };
+    finnhubWS.onclose = () => { updateLiveStatus(); };
+  } catch (e) { console.warn('Finnhub init fail:', e); }
+}
+
+function flashSymbol(sym, dir) {
+  document.querySelectorAll(`[data-sym="${sym}"]`).forEach(el => {
+    el.classList.remove('flash-pos', 'flash-neg');
+    void el.offsetWidth;
+    el.classList.add('flash-' + dir);
+  });
+}
+
+function throttledRender() {
+  if (renderThrottle) return;
+  renderThrottle = setTimeout(() => {
+    renderThrottle = null;
+    if (document.getElementById('market')?.classList.contains('active')) renderWatchlist();
+    if (document.getElementById('today')?.classList.contains('active')) {
+      renderMovers();
+      renderToday();
+    }
+  }, 500);
+}
+
+function updateLiveStatus() {
+  const el = document.getElementById('liveStatus');
+  if (!el) return;
+  if (finnhubWS && finnhubWS.readyState === WebSocket.OPEN) {
+    el.innerHTML = '<span style="color:var(--green);">● CANLI</span> · Finnhub WS aktif';
+  } else if (state.settings.finnhub_key) {
+    el.innerHTML = '<span style="color:var(--gold);">○</span> WS bağlanıyor...';
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+// ============ TRADINGVIEW MODAL ============
+function openChart(sym, mkt) {
+  const tvSym = (mkt === 'BIST') ? `BIST:${sym}` : `${mkt}:${sym}`;
+  const modal = document.getElementById('chartModal');
+  const container = document.getElementById('tvContainer');
+  container.innerHTML = `
+    <div class="tradingview-widget-container" style="height: 420px;">
+      <iframe
+        src="https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=${encodeURIComponent(tvSym)}&interval=15&hidesidetoolbar=1&theme=dark&style=1&timezone=Europe%2FIstanbul&studies=%5B%5D&backgroundColor=%23181613&toolbar_bg=%23181613&saveimage=0&details=1&locale=tr"
+        style="width:100%; height:100%; border:0; border-radius:4px;"
+        allowfullscreen></iframe>
+    </div>
+    <div style="margin-top:10px; display:flex; gap:8px;">
+      <button class="btn secondary" style="margin:0;" onclick="closeChart()">Kapat</button>
+      <button class="btn" style="margin:0;" onclick="useSymbol('${sym}', '${mkt}', ${quoteCache[sym]?.price || quoteCache[sym + '.IS']?.price || 0}); closeChart();">Bu hisseye işlem aç</button>
+    </div>
+  `;
+  document.getElementById('chartTitle').textContent = sym + ' · ' + mkt;
+  modal.classList.add('active');
+}
+function closeChart() {
+  document.getElementById('chartModal').classList.remove('active');
+  document.getElementById('tvContainer').innerHTML = '';
 }
 
 // ============ CURRENCY UI ============
@@ -940,6 +1096,7 @@ function addTrade() {
     closed: null
   });
   save();
+  reconnectFinnhub();
   if (document.getElementById('today')?.classList.contains('active')) renderToday();
 
   document.getElementById('f_sym').value = '';
@@ -961,18 +1118,27 @@ function renderOpen() {
     return;
   }
   el.innerHTML = open.map(t => {
-    const c = calcCost(t, t.current);
-    const pct = ((t.current - t.entry) / t.entry) * 100 * (t.side === 'long' ? 1 : -1);
+    const live = quoteCache[t.sym.toUpperCase()] || quoteCache[t.sym.toUpperCase() + '.IS'];
+    const current = live?.price || t.current;
+    const isLive = live?.source === 'finnhub';
+    const c = calcCost(t, current);
+    const pct = ((current - t.entry) / t.entry) * 100 * (t.side === 'long' ? 1 : -1);
     const cls = c.netTL >= 0 ? 'pos' : 'neg';
     return `
-      <div class="card" onclick="openClose(${t.id})" style="cursor:pointer;">
+      <div class="card" data-sym="${t.sym.toUpperCase()}" onclick="openClose(${t.id})" style="cursor:pointer;">
         <div class="row">
-          <div><span class="sym">${t.sym}</span><span class="mkt">${t.mkt} · ${t.side}</span></div>
-          <div class="pnl ${cls}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
+          <div>
+            <span class="sym">${t.sym}</span>
+            <span class="mkt">${t.mkt} · ${t.side}${isLive ? ' · LIVE' : ''}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="pnl ${cls}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
+            <button class="icon-btn" style="width:28px; height:28px; font-size:13px; padding:0;" onclick="event.stopPropagation(); openChart('${t.sym}', '${t.mkt}')" title="Grafik">📊</button>
+          </div>
         </div>
         ${t.sector ? `<div style="font-size:11px; color:var(--fg-3); margin-top:4px;">${t.name || ''} · ${t.sector}</div>` : ''}
         <div class="meta">
-          ${t.qty} × ${fmt(t.entry, c.currency)} → ${fmt(t.current, c.currency)}
+          ${t.qty} × ${fmt(t.entry, c.currency)} → ${fmt(current, c.currency)}
           <br>NET: <span class="pnl ${cls}">${fmt(c.netTL, 'TL')}</span>
         </div>
       </div>
@@ -1474,6 +1640,8 @@ function renderPatterns(closed) {
 // ============ SETTINGS ============
 function openSettings() {
   document.getElementById('set_capital').value = state.settings.starting_capital;
+  document.getElementById('set_poll').value = state.settings.poll_seconds;
+  document.getElementById('set_finnhub').value = state.settings.finnhub_key;
   document.getElementById('set_usdtry').value = state.settings.usdtry;
   document.getElementById('set_bracket').value = state.settings.bracket;
   document.getElementById('set_bist_comm').value = state.settings.bist_comm;
@@ -1485,6 +1653,10 @@ function openSettings() {
 function closeSettings() { document.getElementById('settingsModal').classList.remove('active'); }
 function saveSettings() {
   state.settings.starting_capital = parseFloat(document.getElementById('set_capital').value) || DEFAULTS.starting_capital;
+  state.settings.poll_seconds = Math.max(5, Math.min(60, parseInt(document.getElementById('set_poll').value) || DEFAULTS.poll_seconds));
+  const newKey = (document.getElementById('set_finnhub').value || '').trim();
+  const keyChanged = newKey !== state.settings.finnhub_key;
+  state.settings.finnhub_key = newKey;
   state.settings.usdtry = parseFloat(document.getElementById('set_usdtry').value) || DEFAULTS.usdtry;
   state.settings.bracket = parseInt(document.getElementById('set_bracket').value);
   state.settings.bist_comm = parseFloat(document.getElementById('set_bist_comm').value) || DEFAULTS.bist_comm;
@@ -1493,7 +1665,9 @@ function saveSettings() {
   state.settings.fx = parseFloat(document.getElementById('set_fx').value) || DEFAULTS.fx;
   save();
   closeSettings();
-  if (document.getElementById('dash').classList.contains('active')) renderOpen();
+  startQuotePolling();
+  if (keyChanged) reconnectFinnhub();
+  if (document.getElementById('today')?.classList.contains('active')) renderToday();
 }
 
 // ============ EDUCATION ============
@@ -1837,8 +2011,18 @@ updateCurrency();
 renderToday();
 fetchQuotes();
 startQuotePolling();
+reconnectFinnhub();
 setupAutocomplete('f_sym', 'f_sym_drop');
 setupAutocomplete('m_add', 'm_add_drop');
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    fetchQuotes();
+    if (state.settings.finnhub_key && (!finnhubWS || finnhubWS.readyState !== WebSocket.OPEN)) {
+      reconnectFinnhub();
+    }
+  }
+});
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
