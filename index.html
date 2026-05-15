@@ -24,8 +24,18 @@
     --petrol: #2F4F4F;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: Georgia, "Times New Roman", serif; min-height: 100vh; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: Georgia, "Times New Roman", serif; min-height: 100vh; font-feature-settings: "kern"; }
   body { padding-bottom: 80px; }
+
+  .num, .pnl, .price, .pct, .val, input[type="number"] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "kern" 1;
+  }
+  .display-num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1, "kern" 1;
+    letter-spacing: -0.02em;
+  }
   .container { max-width: 720px; margin: 0 auto; padding: 16px; padding-top: env(safe-area-inset-top, 16px); }
   header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 10; }
   header .brand { font-size: 18px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); }
@@ -38,7 +48,32 @@
   nav.tabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
 
   section { display: none; }
-  section.active { display: block; }
+  section.active { display: block; animation: fadeSlide 0.22s ease-out; }
+  @keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes flash-pos {
+    0% { background: transparent; }
+    20% { background: rgba(123, 139, 74, 0.18); }
+    100% { background: transparent; }
+  }
+  @keyframes flash-neg {
+    0% { background: transparent; }
+    20% { background: rgba(184, 84, 64, 0.18); }
+    100% { background: transparent; }
+  }
+  .flash-pos { animation: flash-pos 0.7s ease-out; }
+  .flash-neg { animation: flash-neg 0.7s ease-out; }
+
+  .card { transition: transform 0.12s ease, border-color 0.15s ease; }
+  .card:active { transform: scale(0.985); border-color: var(--gold-2); }
+
+  nav.tabs button { transition: color 0.15s ease, border-color 0.15s ease; }
+  .btn { transition: opacity 0.15s ease, transform 0.08s ease; }
+  .btn:active { transform: scale(0.97); }
+  .icon-btn { transition: background 0.15s ease, border-color 0.15s ease; }
 
   h2 { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: var(--fg-2); margin: 18px 0 12px; font-weight: normal; }
   h3 { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: var(--gold); margin: 0 0 8px; font-weight: normal; }
@@ -120,13 +155,13 @@
   .masthead { padding: 24px 0 18px; border-bottom: 1px solid var(--line); margin-bottom: 18px; position: relative; }
   .masthead .dow { font-size: 11px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; }
   .masthead .datedisplay { display: flex; align-items: baseline; gap: 14px; margin-top: 6px; line-height: 1; }
-  .masthead .datedisplay .day { font-size: 64px; color: var(--fg); font-weight: normal; letter-spacing: -2px; font-feature-settings: "lnum"; }
+  .masthead .datedisplay .day { font-size: 64px; color: var(--fg); font-weight: normal; letter-spacing: -0.04em; font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1, "kern" 1; }
   .masthead .datedisplay .month { font-size: 22px; color: var(--fg-2); letter-spacing: 1px; text-transform: uppercase; font-style: italic; }
   .masthead .year { font-size: 11px; letter-spacing: 3px; color: var(--fg-3); margin-top: 4px; text-transform: uppercase; }
 
   .portfolio-card { background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-3) 100%); border: 1px solid var(--gold-2); border-radius: 6px; padding: 18px 18px 16px; margin-bottom: 22px; position: relative; overflow: hidden; }
   .portfolio-card .pc-label { font-size: 10px; letter-spacing: 3px; color: var(--fg-3); text-transform: uppercase; }
-  .portfolio-card .pc-value { font-size: 36px; color: var(--gold); margin-top: 6px; letter-spacing: -1px; font-feature-settings: "tnum"; }
+  .portfolio-card .pc-value { font-size: 38px; color: var(--gold); margin-top: 6px; letter-spacing: -0.025em; font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; }
   .portfolio-card .pc-sub { display: flex; gap: 14px; margin-top: 10px; font-size: 12px; color: var(--fg-2); }
   .portfolio-card .pc-sub span.divider { color: var(--fg-3); }
   .portfolio-card .pc-change { font-size: 13px; margin-top: 4px; }
@@ -612,7 +647,7 @@ function renderMovers() {
     const cur = q.currency === 'TRY' ? '₺' : '$';
     const pct = (q.changePct || 0).toFixed(2);
     const price = (q.price || 0).toFixed(2);
-    return `<div class="mover-row" onclick="useSymbol('${sym}', '${q.symbol.endsWith('.IS') ? 'BIST' : 'NASDAQ'}', ${q.price})" style="cursor:pointer;">
+    return `<div class="mover-row" data-sym="${sym}" onclick="useSymbol('${sym}', '${q.symbol.endsWith('.IS') ? 'BIST' : 'NASDAQ'}', ${q.price})" style="cursor:pointer;">
       <div class="pct ${cls}">${(q.changePct||0) >= 0 ? '+' : ''}${pct}%</div>
       <div class="sym">${sym}</div>
       <div class="price">${cur}${price}</div>
@@ -693,6 +728,7 @@ function selectAc(inputId, dropId, idx) {
 // ============ WATCHLIST ============
 let quoteCache = {};
 let quoteTimer = null;
+let prevPrices = {};
 
 function renderWatchlist() {
   const el = document.getElementById('watchList');
@@ -719,7 +755,7 @@ function renderWatchlist() {
     const chgFmt = (q.change || 0).toFixed(2);
     const pctFmt = (q.changePct || 0).toFixed(2);
     return `
-      <div class="card" onclick="useSymbol('${sym}', '${isUS ? 'NASDAQ' : 'BIST'}', ${q.price})" style="cursor:pointer;">
+      <div class="card" data-sym="${sym}" onclick="useSymbol('${sym}', '${isUS ? 'NASDAQ' : 'BIST'}', ${q.price})" style="cursor:pointer;">
         <div class="row">
           <div>
             <span class="sym">${sym}</span>
@@ -752,8 +788,17 @@ async function fetchQuotes() {
     const r = await fetch('/api/quote?s=' + encodeURIComponent(sym));
     if (!r.ok) throw new Error('http ' + r.status);
     const data = await r.json();
+    const changes = {};
     if (data.quotes) {
-      data.quotes.forEach(q => { quoteCache[q.symbol] = q; });
+      data.quotes.forEach(q => {
+        const key = q.symbol.replace('.IS', '');
+        const prev = prevPrices[key];
+        if (prev !== undefined && q.price !== undefined && Math.abs(q.price - prev) > 0.0001) {
+          changes[key] = q.price > prev ? 'pos' : 'neg';
+        }
+        prevPrices[key] = q.price;
+        quoteCache[q.symbol] = q;
+      });
     }
     const dt = new Date();
     status.textContent = 'son: ' + dt.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
@@ -761,6 +806,15 @@ async function fetchQuotes() {
     if (document.getElementById('today')?.classList.contains('active')) {
       renderMovers();
     }
+    requestAnimationFrame(() => {
+      Object.entries(changes).forEach(([sym, dir]) => {
+        document.querySelectorAll(`[data-sym="${sym}"]`).forEach(el => {
+          el.classList.remove('flash-pos', 'flash-neg');
+          void el.offsetWidth;
+          el.classList.add('flash-' + dir);
+        });
+      });
+    });
   } catch (e) {
     status.textContent = 'hata';
     console.warn(e);
@@ -1021,6 +1075,7 @@ function renderClosed() {
 
 // ============ EQUITY CURVE ============
 const benchmarkCache = {};
+const COLORS = { fg: '#F2EAD8', fg2: '#B8AE96', fg3: '#807868', gold: '#C8A046' };
 
 async function fetchBenchmark(symbol, range) {
   const key = symbol + '_' + range;
@@ -1129,30 +1184,118 @@ async function renderEquityChart() {
     yTicks.push({ v, y: yScale(v) });
   }
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%; height:240px; display:block;">`;
+  const monthTicks = [];
+  const startMonth = new Date(xMin);
+  startMonth.setDate(1); startMonth.setHours(0,0,0,0);
+  const monthLabels = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+  for (let m = new Date(startMonth); m.getTime() <= xMax; m.setMonth(m.getMonth() + 1)) {
+    if (m.getTime() >= xMin && m.getTime() <= xMax) {
+      monthTicks.push({ t: m.getTime(), label: monthLabels[m.getMonth()] });
+    }
+  }
+
+  let svg = `<svg id="equitySvg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%; height:240px; display:block; touch-action:none;">`;
   svg += `<rect x="0" y="0" width="${W}" height="${H}" fill="#181613" rx="4"/>`;
   yTicks.forEach(t => {
     svg += `<line x1="${padL}" y1="${t.y}" x2="${W-padR}" y2="${t.y}" stroke="#2A2620" stroke-width="0.5"/>`;
-    svg += `<text x="${padL - 6}" y="${t.y + 3}" text-anchor="end" fill="#807868" font-size="9" font-family="Georgia">${Math.round(t.v).toLocaleString('tr-TR')}</text>`;
+    svg += `<text x="${padL - 6}" y="${t.y + 3}" text-anchor="end" fill="#807868" font-size="9" font-family="Georgia" font-variant-numeric="tabular-nums">${Math.round(t.v).toLocaleString('tr-TR')}</text>`;
   });
+
+  monthTicks.forEach(mt => {
+    const x = xScale(mt.t);
+    svg += `<line x1="${x}" y1="${padT}" x2="${x}" y2="${H - padB}" stroke="#2A2620" stroke-width="0.5"/>`;
+    svg += `<text x="${x}" y="${H - 12}" text-anchor="middle" fill="#807868" font-size="9" font-family="Georgia" font-style="italic">${mt.label}</text>`;
+  });
+
   svg += `<line x1="${padL}" y1="${startY}" x2="${W-padR}" y2="${startY}" stroke="#807868" stroke-width="0.5" stroke-dasharray="2 2"/>`;
   svg += `<text x="${W - padR - 4}" y="${startY - 4}" text-anchor="end" fill="#807868" font-size="9" font-style="italic">başlangıç</text>`;
 
   lines.forEach(l => {
     const path = l.points.map((p, i) => (i === 0 ? 'M' : 'L') + xScale(p.t).toFixed(1) + ',' + yScale(p.v).toFixed(1)).join(' ');
     const dash = l.dash ? `stroke-dasharray="${l.dash}"` : '';
-    svg += `<path d="${path}" fill="none" stroke="${l.color}" stroke-width="${l.width}" stroke-linejoin="round" ${dash}/>`;
+    svg += `<path d="${path}" fill="none" stroke="${l.color}" stroke-width="${l.width}" stroke-linejoin="round" stroke-linecap="round" ${dash} opacity="0.92"/>`;
     const last = l.points[l.points.length - 1];
-    svg += `<circle cx="${xScale(last.t).toFixed(1)}" cy="${yScale(last.v).toFixed(1)}" r="3" fill="${l.color}"/>`;
+    svg += `<circle cx="${xScale(last.t).toFixed(1)}" cy="${yScale(last.v).toFixed(1)}" r="3.5" fill="${l.color}" stroke="#181613" stroke-width="1.5"/>`;
   });
 
-  const startStr = sum.firstDate.toLocaleDateString('tr-TR', {day:'numeric', month:'short'});
-  const endStr = sum.lastDate.toLocaleDateString('tr-TR', {day:'numeric', month:'short'});
-  svg += `<text x="${padL}" y="${H - 8}" fill="#807868" font-size="10" font-family="Georgia">${startStr}</text>`;
-  svg += `<text x="${W - padR}" y="${H - 8}" text-anchor="end" fill="#807868" font-size="10" font-family="Georgia">${endStr}</text>`;
+  svg += `<g id="eq_tooltip" style="display:none; pointer-events:none;">
+    <line id="eq_tip_line" y1="${padT}" y2="${H - padB}" stroke="#C8A046" stroke-width="0.7" stroke-dasharray="2 2" opacity="0.7"/>
+    <g id="eq_tip_dots"></g>
+    <rect id="eq_tip_bg" rx="3" fill="#0F0E0C" stroke="#2A2620" stroke-width="1" opacity="0.95"/>
+    <text id="eq_tip_date" fill="#C8A046" font-size="10" font-family="Georgia" font-weight="bold"></text>
+    <text id="eq_tip_text" fill="#F2EAD8" font-size="10" font-family="Georgia" font-variant-numeric="tabular-nums"></text>
+  </g>`;
 
   svg += '</svg>';
   el.innerHTML = svg;
+
+  const svgEl = document.getElementById('equitySvg');
+  const tip = document.getElementById('eq_tooltip');
+  const tipLine = document.getElementById('eq_tip_line');
+  const tipBg = document.getElementById('eq_tip_bg');
+  const tipDate = document.getElementById('eq_tip_date');
+  const tipText = document.getElementById('eq_tip_text');
+  const tipDots = document.getElementById('eq_tip_dots');
+
+  function showTip(svgX) {
+    if (svgX < padL || svgX > W - padR) { tip.style.display = 'none'; return; }
+    const t = xMin + ((svgX - padL) / plotW) * (xMax - xMin);
+    tipLine.setAttribute('x1', svgX);
+    tipLine.setAttribute('x2', svgX);
+    const dStr = new Date(t).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+    let dotsHtml = '';
+    let textRows = '';
+    lines.forEach(l => {
+      let nearest = l.points[0];
+      let minDist = Math.abs(nearest.t - t);
+      l.points.forEach(p => {
+        const d = Math.abs(p.t - t);
+        if (d < minDist) { minDist = d; nearest = p; }
+      });
+      const dotX = xScale(nearest.t);
+      const dotY = yScale(nearest.v);
+      dotsHtml += `<circle cx="${dotX}" cy="${dotY}" r="3.5" fill="${l.color}" stroke="#0F0E0C" stroke-width="1.5"/>`;
+      textRows += `${l.name.padEnd(11, ' ')} ${Math.round(nearest.v).toLocaleString('tr-TR')}\n`;
+    });
+    tipDots.innerHTML = dotsHtml;
+    tipDate.textContent = dStr;
+    const lineCount = lines.length;
+    const boxW = 130;
+    const boxH = 18 + lineCount * 13;
+    let boxX = svgX + 8;
+    if (boxX + boxW > W - padR) boxX = svgX - boxW - 8;
+    const boxY = padT + 4;
+    tipBg.setAttribute('x', boxX);
+    tipBg.setAttribute('y', boxY);
+    tipBg.setAttribute('width', boxW);
+    tipBg.setAttribute('height', boxH);
+    tipDate.setAttribute('x', boxX + 8);
+    tipDate.setAttribute('y', boxY + 14);
+    tipText.setAttribute('x', boxX + 8);
+    tipText.setAttribute('y', boxY + 28);
+    tipText.innerHTML = lines.map((l, i) => {
+      let nearest = l.points[0];
+      let minDist = Math.abs(nearest.t - t);
+      l.points.forEach(p => {
+        const d = Math.abs(p.t - t);
+        if (d < minDist) { minDist = d; nearest = p; }
+      });
+      return `<tspan x="${boxX + 8}" dy="${i === 0 ? 0 : 13}"><tspan fill="${l.color}">●</tspan> <tspan fill="${COLORS.fg2}">${l.name}</tspan>  <tspan fill="${COLORS.fg}" font-weight="bold">${Math.round(nearest.v).toLocaleString('tr-TR')}</tspan></tspan>`;
+    }).join('');
+    tip.style.display = 'block';
+  }
+  function hideTip() { tip.style.display = 'none'; }
+
+  function getX(e) {
+    const rect = svgEl.getBoundingClientRect();
+    const cx = e.touches ? e.touches[0].clientX : e.clientX;
+    return ((cx - rect.left) / rect.width) * W;
+  }
+  svgEl.addEventListener('mousemove', e => showTip(getX(e)));
+  svgEl.addEventListener('mouseleave', hideTip);
+  svgEl.addEventListener('touchstart', e => { e.preventDefault(); showTip(getX(e)); }, { passive: false });
+  svgEl.addEventListener('touchmove', e => { e.preventDefault(); showTip(getX(e)); }, { passive: false });
+  svgEl.addEventListener('touchend', hideTip);
 
   document.getElementById('equityLegend').innerHTML = lines.map(l => {
     const ret = ((l.last - state.settings.starting_capital) / state.settings.starting_capital) * 100;
