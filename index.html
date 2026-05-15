@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0F0E0C" />
+<meta name="description" content="Sanal trading + ekonomi öğrenme defteri" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+<title>İşlem Defteri</title>
+<style>
+  :root {
+    --bg: #0F0E0C;
+    --bg-2: #181613;
+    --bg-3: #221F1A;
+    --line: #2A2620;
+    --fg: #F2EAD8;
+    --fg-2: #B8AE96;
+    --fg-3: #807868;
+    --gold: #C8A046;
+    --gold-2: #9A7A30;
+    --green: #7B8B4A;
+    --red: #B85440;
+    --petrol: #2F4F4F;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: Georgia, "Times New Roman", serif; min-height: 100vh; }
+  body { padding-bottom: 80px; }
+  .container { max-width: 720px; margin: 0 auto; padding: 16px; padding-top: env(safe-area-inset-top, 16px); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 16px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--bg); z-index: 10; }
+  header .brand { font-size: 18px; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); }
+  header .brand span { color: var(--fg-2); font-size: 11px; letter-spacing: 3px; display: block; margin-top: 2px; }
+  .icon-btn { background: none; border: 1px solid var(--line); color: var(--fg-2); width: 38px; height: 38px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+  .icon-btn:active { background: var(--bg-3); }
+
+  nav.tabs { display: flex; gap: 4px; padding: 12px 16px 0; overflow-x: auto; border-bottom: 1px solid var(--line); }
+  nav.tabs button { background: none; border: none; color: var(--fg-3); padding: 10px 12px; font-family: inherit; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+  nav.tabs button.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+  section { display: none; }
+  section.active { display: block; }
+
+  h2 { font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: var(--fg-2); margin: 18px 0 12px; font-weight: normal; }
+  h3 { font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: var(--gold); margin: 0 0 8px; font-weight: normal; }
+
+  .card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 14px; margin-bottom: 10px; }
+  .card .row { display: flex; justify-content: space-between; align-items: baseline; }
+  .card .sym { font-size: 16px; color: var(--fg); letter-spacing: 1px; }
+  .card .mkt { color: var(--fg-3); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-left: 6px; }
+  .card .meta { color: var(--fg-3); font-size: 12px; margin-top: 6px; }
+  .card .pnl { font-size: 14px; }
+  .pnl.pos { color: var(--green); }
+  .pnl.neg { color: var(--red); }
+
+  label { display: block; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--fg-3); margin: 12px 0 6px; }
+  input, select, textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--line); color: var(--fg); padding: 10px 12px; font-family: inherit; font-size: 15px; border-radius: 4px; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold-2); }
+  textarea { min-height: 90px; resize: vertical; font-size: 14px; line-height: 1.5; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .btn { display: inline-block; background: var(--gold); color: var(--bg); border: none; padding: 12px 18px; font-family: inherit; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 16px; }
+  .btn:disabled { opacity: 0.4; }
+  .btn.secondary { background: transparent; border: 1px solid var(--line); color: var(--fg-2); }
+  .btn.danger { background: transparent; border: 1px solid var(--red); color: var(--red); }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { background: var(--bg-2); border: 1px solid var(--line); padding: 14px; border-radius: 4px; }
+  .stat .label { font-size: 10px; letter-spacing: 2px; color: var(--fg-3); text-transform: uppercase; }
+  .stat .val { font-size: 22px; color: var(--gold); margin-top: 6px; font-family: Georgia, serif; }
+  .stat .sub { font-size: 11px; color: var(--fg-3); margin-top: 4px; }
+
+  .quad { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
+  .quad div { background: var(--bg-2); border: 1px solid var(--line); padding: 10px; border-radius: 4px; }
+  .quad .head { font-size: 10px; letter-spacing: 1px; color: var(--fg-3); text-transform: uppercase; }
+  .quad .n { font-size: 20px; color: var(--fg); margin-top: 4px; }
+  .quad .desc { font-size: 10px; color: var(--fg-3); margin-top: 2px; }
+
+  .cost-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .cost-table td { padding: 6px 0; font-size: 13px; border-bottom: 1px dotted var(--line); }
+  .cost-table td:last-child { text-align: right; color: var(--fg); }
+  .cost-table tr.total td { font-weight: bold; color: var(--gold); border-bottom: none; padding-top: 10px; }
+  .cost-table tr.muted td { color: var(--fg-3); font-size: 12px; }
+
+  .concept-card { background: var(--bg-2); border-left: 3px solid var(--gold); padding: 16px; margin-bottom: 12px; border-radius: 0 4px 4px 0; }
+  .concept-card .day { font-size: 10px; letter-spacing: 2px; color: var(--fg-3); text-transform: uppercase; }
+  .concept-card .title { font-size: 17px; color: var(--gold); margin: 6px 0 10px; }
+  .concept-card .tag { display: inline-block; font-size: 10px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 2px; color: var(--fg-3); margin-right: 4px; }
+  .concept-card .body { font-size: 14px; line-height: 1.65; color: var(--fg-2); }
+
+  .glossary-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .glossary-item .term { color: var(--gold); font-size: 14px; }
+  .glossary-item .def { color: var(--fg-2); font-size: 13px; margin-top: 4px; line-height: 1.5; }
+
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: flex-start; justify-content: center; padding: 20px; z-index: 100; overflow-y: auto; }
+  .modal.active { display: flex; }
+  .modal-content { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 20px; width: 100%; max-width: 520px; }
+  .modal-content h2 { margin-top: 0; }
+
+  .pill { display: inline-block; font-size: 10px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 10px; color: var(--fg-3); letter-spacing: 1px; text-transform: uppercase; }
+  .pill.gold { color: var(--gold); border-color: var(--gold-2); }
+
+  .warn { background: rgba(184, 84, 64, 0.1); border: 1px solid var(--red); color: var(--red); padding: 10px 12px; font-size: 12px; border-radius: 4px; margin-top: 10px; }
+  .info { background: rgba(200, 160, 70, 0.08); border: 1px solid var(--gold-2); color: var(--fg-2); padding: 10px 12px; font-size: 12px; border-radius: 4px; margin-top: 10px; }
+
+  .empty { text-align: center; color: var(--fg-3); padding: 40px 20px; font-size: 14px; }
+  .empty .ico { font-size: 32px; color: var(--gold-2); margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">İşlem Defteri<span>Sanal Trade · Eğitim</span></div>
+  <button class="icon-btn" onclick="openSettings()">⚙</button>
+</header>
+
+<nav class="tabs">
+  <button data-tab="dash" class="active" onclick="switchTab('dash')">Açık</button>
+  <button data-tab="new" onclick="switchTab('new')">Yeni</button>
+  <button data-tab="stat" onclick="switchTab('stat')">İstatistik</button>
+  <button data-tab="edu" onclick="switchTab('edu')">Eğitim</button>
+  <button data-tab="log" onclick="switchTab('log')">Defter</button>
+</nav>
+
+<div class="container">
+
+  <section id="dash" class="active">
+    <h2>Açık Pozisyonlar</h2>
+    <div id="openList"></div>
+  </section>
+
+  <section id="new">
+    <h2>Yeni İşlem</h2>
+    <label>Piyasa</label>
+    <select id="f_mkt" onchange="updateCurrency()">
+      <option value="BIST">BIST (TL)</option>
+      <option value="NASDAQ">NASDAQ (USD)</option>
+      <option value="NYSE">NYSE (USD)</option>
+    </select>
+
+    <label>Sembol</label>
+    <input id="f_sym" placeholder="THYAO, AAPL, NVDA..." />
+
+    <div class="grid-2">
+      <div>
+        <label>Yön</label>
+        <select id="f_side">
+          <option value="long">Long (Alım)</option>
+          <option value="short">Short (Satım)</option>
+        </select>
+      </div>
+      <div>
+        <label>Giriş Fiyatı <span id="f_cur" class="pill">TL</span></label>
+        <input id="f_price" type="number" step="0.01" placeholder="0.00" oninput="updateCostPreview()" />
+      </div>
+    </div>
+
+    <label>Adet</label>
+    <input id="f_qty" type="number" step="1" placeholder="100" oninput="updateCostPreview()" />
+
+    <label>Tez (neden bu hisse, neden bugün) — min 20 karakter</label>
+    <textarea id="f_thesis" placeholder="Tezini yaz. 'Sezgi' yeterli değil. Hangi gözlem, hangi haber, hangi göstergeyle?"></textarea>
+
+    <div id="costPreview"></div>
+
+    <button class="btn" onclick="addTrade()">İşlemi Aç</button>
+  </section>
+
+  <section id="stat">
+    <h2>Performans</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="label">Toplam İşlem</div><div class="val" id="s_total">0</div></div>
+      <div class="stat"><div class="label">Win Rate</div><div class="val" id="s_wr">—</div></div>
+      <div class="stat"><div class="label">Brüt P&L</div><div class="val" id="s_gross">—</div><div class="sub" id="s_gross_sub"></div></div>
+      <div class="stat"><div class="label">NET P&L</div><div class="val" id="s_net">—</div><div class="sub">komisyon + vergi sonrası</div></div>
+      <div class="stat"><div class="label">Komisyon Top.</div><div class="val" id="s_comm">—</div></div>
+      <div class="stat"><div class="label">Vergi Yükü</div><div class="val" id="s_tax">—</div><div class="sub">yurtdışı kâr</div></div>
+    </div>
+
+    <h2 style="margin-top: 24px;">Karar Kalitesi</h2>
+    <div class="quad">
+      <div><div class="head">✓ Tez · ✓ Kâr</div><div class="n" id="q_skill">0</div><div class="desc">Skill — sürdürülebilir</div></div>
+      <div><div class="head">✓ Tez · ✗ Zarar</div><div class="n" id="q_unlucky">0</div><div class="desc">Bad luck — süreç iyi</div></div>
+      <div><div class="head">✗ Tez · ✓ Kâr</div><div class="n" id="q_lucky">0</div><div class="desc">Lucky — tehlikeli</div></div>
+      <div><div class="head">✗ Tez · ✗ Zarar</div><div class="n" id="q_lesson">0</div><div class="desc">Lesson — öğren</div></div>
+    </div>
+
+    <div id="taxWarn"></div>
+  </section>
+
+  <section id="edu">
+    <h2>Bugünün Kavramı</h2>
+    <div id="conceptToday"></div>
+
+    <h2 style="margin-top: 24px;">Tüm Kavramlar</h2>
+    <div id="conceptList"></div>
+
+    <h2 style="margin-top: 24px;">Sözlük</h2>
+    <input id="glossSearch" placeholder="Ara: P/E, Sharpe, drawdown..." oninput="renderGlossary()" />
+    <div id="glossList" style="margin-top: 8px;"></div>
+  </section>
+
+  <section id="log">
+    <h2>Kapanmış İşlemler</h2>
+    <div id="closedList"></div>
+  </section>
+
+</div>
+
+<!-- Settings Modal -->
+<div class="modal" id="settingsModal">
+  <div class="modal-content">
+    <h2>Ayarlar</h2>
+
+    <label>USD/TRY Kuru</label>
+    <input id="set_usdtry" type="number" step="0.01" />
+
+    <label>Vergi Dilimi (2026)</label>
+    <select id="set_bracket">
+      <option value="15">%15 — 158.000 TL'ye kadar</option>
+      <option value="20">%20 — 330.000 TL'ye kadar</option>
+      <option value="27">%27 — 800.000 TL'ye kadar</option>
+      <option value="35">%35 — 4.300.000 TL'ye kadar</option>
+      <option value="40">%40 — üstü</option>
+    </select>
+
+    <label>BIST Komisyon (% gidiş-dönüş)</label>
+    <input id="set_bist_comm" type="number" step="0.01" />
+
+    <label>BSMV (% komisyon üzerine)</label>
+    <input id="set_bsmv" type="number" step="0.1" />
+
+    <label>ABD Komisyon (% gidiş-dönüş)</label>
+    <input id="set_us_comm" type="number" step="0.01" />
+
+    <label>Döviz Dönüşüm (% giriş+çıkış toplam)</label>
+    <input id="set_fx" type="number" step="0.01" />
+
+    <button class="btn" onclick="saveSettings()">Kaydet</button>
+    <button class="btn secondary" onclick="closeSettings()">İptal</button>
+  </div>
+</div>
+
+<!-- Close Trade Modal -->
+<div class="modal" id="closeModal">
+  <div class="modal-content">
+    <h2>Pozisyonu Kapat</h2>
+    <div id="closeSummary"></div>
+
+    <label>Çıkış Fiyatı <span id="c_cur" class="pill">TL</span></label>
+    <input id="c_exit" type="number" step="0.01" oninput="updateCloseCost()" />
+
+    <label>Çıkış Sebebi</label>
+    <select id="c_reason">
+      <option value="hedef">Hedefe ulaştı</option>
+      <option value="stop">Stop / kayıp limiti</option>
+      <option value="tez_degisti">Tez değişti</option>
+      <option value="duygusal">Duygusal (panik / FOMO)</option>
+      <option value="firsat">Daha iyi fırsat</option>
+      <option value="zaman">Zaman doldu</option>
+    </select>
+
+    <label>Tezin doğru muydu? (sonuçtan bağımsız)</label>
+    <select id="c_thesis">
+      <option value="dogru">Evet, tez doğruydu</option>
+      <option value="yanlis">Hayır, tez yanlıştı</option>
+      <option value="belirsiz">Belirsiz</option>
+    </select>
+
+    <label>Ne öğrendin? Bir daha ne değiştirirsin?</label>
+    <textarea id="c_lesson" placeholder="Bir cümle yeter ama atlama."></textarea>
+
+    <div id="closeCost"></div>
+
+    <button class="btn" onclick="confirmClose()">Kapat</button>
+    <button class="btn secondary" onclick="closeCloseModal()">İptal</button>
+    <button class="btn danger" onclick="deleteTrade()">İşlemi Sil</button>
+  </div>
+</div>
+
+<script>
+// ============ STATE ============
+const DEFAULTS = {
+  usdtry: 39,
+  bracket: 27,
+  bist_comm: 0.4,
+  bsmv: 5,
+  us_comm: 0.3,
+  fx: 1.0
+};
+
+let state = {
+  trades: [],
+  notes: [],
+  settings: { ...DEFAULTS }
+};
+
+let currentCloseId = null;
+
+function load() {
+  try {
+    const s = localStorage.getItem('defter_v2');
+    if (s) {
+      const parsed = JSON.parse(s);
+      state = { ...state, ...parsed };
+      state.settings = { ...DEFAULTS, ...(parsed.settings || {}) };
+    }
+  } catch (e) { console.warn(e); }
+}
+function save() {
+  localStorage.setItem('defter_v2', JSON.stringify(state));
+}
+
+// ============ TAX / COST ============
+function calcCost(trade, exitPrice) {
+  const s = state.settings;
+  const isUS = trade.mkt !== 'BIST';
+  const qty = trade.qty;
+  const entry = trade.entry;
+  const exit = exitPrice;
+
+  const grossLocal = trade.side === 'long' ? (exit - entry) * qty : (entry - exit) * qty;
+  const volumeLocal = (entry + (exit || entry)) * qty;
+
+  const commRate = isUS ? s.us_comm / 100 : s.bist_comm / 100;
+  const commLocal = volumeLocal * commRate;
+  const bsmvLocal = isUS ? 0 : commLocal * (s.bsmv / 100);
+
+  let fxLocal = 0;
+  if (isUS) fxLocal = volumeLocal * (s.fx / 100);
+
+  const grossTL = isUS ? grossLocal * s.usdtry : grossLocal;
+  const commTL = isUS ? commLocal * s.usdtry : commLocal;
+  const bsmvTL = bsmvLocal;
+  const fxTL = isUS ? fxLocal * s.usdtry : 0;
+
+  const taxableTL = isUS && grossTL > 0 ? grossTL - commTL - fxTL : 0;
+  const taxTL = taxableTL > 0 ? taxableTL * (s.bracket / 100) : 0;
+
+  const netTL = grossTL - commTL - bsmvTL - fxTL - taxTL;
+
+  return {
+    isUS, grossLocal, grossTL, commTL, bsmvTL, fxTL, taxTL, netTL,
+    currency: isUS ? 'USD' : 'TL'
+  };
+}
+
+function fmt(n, cur) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (cur === 'USD') return sign + '$' + abs.toFixed(2);
+  return sign + abs.toLocaleString('tr-TR', { maximumFractionDigits: 2 }) + ' ₺';
+}
+
+// ============ TABS ============
+function switchTab(t) {
+  document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+  document.getElementById(t).classList.add('active');
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  if (t === 'dash') renderOpen();
+  if (t === 'stat') renderStats();
+  if (t === 'edu') renderEdu();
+  if (t === 'log') renderClosed();
+}
+
+// ============ CURRENCY UI ============
+function updateCurrency() {
+  const mkt = document.getElementById('f_mkt').value;
+  document.getElementById('f_cur').textContent = mkt === 'BIST' ? 'TL' : 'USD';
+  updateCostPreview();
+}
+
+function updateCostPreview() {
+  const mkt = document.getElementById('f_mkt').value;
+  const price = parseFloat(document.getElementById('f_price').value);
+  const qty = parseFloat(document.getElementById('f_qty').value);
+  if (!price || !qty) { document.getElementById('costPreview').innerHTML = ''; return; }
+
+  const fake = { mkt, side: 'long', entry: price, qty };
+  const c = calcCost(fake, price);
+  const volume = price * qty;
+  const s = state.settings;
+  const isUS = mkt !== 'BIST';
+  const commRate = isUS ? s.us_comm / 100 : s.bist_comm / 100;
+  const commLocal = volume * commRate;
+  const commTL = isUS ? commLocal * s.usdtry : commLocal;
+  const bsmvTL = isUS ? 0 : commLocal * (s.bsmv / 100);
+  const fxTL = isUS ? volume * (s.fx / 100) * s.usdtry : 0;
+
+  let html = '<div class="info"><strong>Tahmini maliyetler (gidiş-dönüş):</strong><table class="cost-table">';
+  html += '<tr><td>Pozisyon büyüklüğü</td><td>' + fmt(volume, isUS ? 'USD' : 'TL') + '</td></tr>';
+  html += '<tr><td>Komisyon</td><td>' + fmt(commTL, 'TL') + '</td></tr>';
+  if (!isUS) html += '<tr><td>BSMV</td><td>' + fmt(bsmvTL, 'TL') + '</td></tr>';
+  if (isUS) html += '<tr><td>Döviz dönüşüm</td><td>' + fmt(fxTL, 'TL') + '</td></tr>';
+  if (isUS) html += '<tr class="muted"><td colspan="2">+ Kâr olursa yurtdışı kazanç vergisi (%' + s.bracket + ') uygulanır. Yıllık beyan zorunlu.</td></tr>';
+  else html += '<tr class="muted"><td colspan="2">BIST bireysel: alım-satım stopajı %0. Sadece komisyon + BSMV.</td></tr>';
+  html += '</table></div>';
+  document.getElementById('costPreview').innerHTML = html;
+}
+
+// ============ TRADES ============
+function addTrade() {
+  const mkt = document.getElementById('f_mkt').value;
+  const sym = document.getElementById('f_sym').value.trim().toUpperCase();
+  const side = document.getElementById('f_side').value;
+  const entry = parseFloat(document.getElementById('f_price').value);
+  const qty = parseFloat(document.getElementById('f_qty').value);
+  const thesis = document.getElementById('f_thesis').value.trim();
+
+  if (!sym) return alert('Sembol gerekli');
+  if (!entry || entry <= 0) return alert('Geçerli fiyat gir');
+  if (!qty || qty <= 0) return alert('Geçerli adet gir');
+  if (thesis.length < 20) return alert('Tez en az 20 karakter olmalı. Neden bu hisse?');
+
+  state.trades.push({
+    id: Date.now(),
+    mkt, sym, side, entry, qty, thesis,
+    current: entry,
+    opened: new Date().toISOString(),
+    closed: null
+  });
+  save();
+
+  document.getElementById('f_sym').value = '';
+  document.getElementById('f_price').value = '';
+  document.getElementById('f_qty').value = '';
+  document.getElementById('f_thesis').value = '';
+  document.getElementById('costPreview').innerHTML = '';
+  switchTab('dash');
+}
+
+function renderOpen() {
+  const open = state.trades.filter(t => !t.closed);
+  const el = document.getElementById('openList');
+  if (open.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="ico">◇</div>Açık pozisyon yok.<br><br><button class="btn" style="max-width:240px;" onclick="switchTab(\'new\')">İlk İşlemi Aç</button></div>';
+    return;
+  }
+  el.innerHTML = open.map(t => {
+    const c = calcCost(t, t.current);
+    const pct = ((t.current - t.entry) / t.entry) * 100 * (t.side === 'long' ? 1 : -1);
+    const cls = c.netTL >= 0 ? 'pos' : 'neg';
+    return `
+      <div class="card" onclick="openClose(${t.id})" style="cursor:pointer;">
+        <div class="row">
+          <div><span class="sym">${t.sym}</span><span class="mkt">${t.mkt} · ${t.side}</span></div>
+          <div class="pnl ${cls}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
+        </div>
+        <div class="meta">
+          ${t.qty} × ${fmt(t.entry, c.currency)} → ${fmt(t.current, c.currency)}
+          <br>NET: <span class="pnl ${cls}">${fmt(c.netTL, 'TL')}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openClose(id) {
+  currentCloseId = id;
+  const t = state.trades.find(x => x.id === id);
+  if (!t) return;
+  const c = calcCost(t, t.current);
+  document.getElementById('c_cur').textContent = c.currency;
+  document.getElementById('c_exit').value = t.current;
+  document.getElementById('c_lesson').value = '';
+  document.getElementById('closeSummary').innerHTML = `
+    <div class="info"><strong>${t.sym}</strong> · ${t.mkt} · ${t.side} · ${t.qty} adet<br>
+    Giriş: ${fmt(t.entry, c.currency)}<br>
+    <em style="color:var(--fg-3);">Tez:</em> ${t.thesis}</div>
+  `;
+  updateCloseCost();
+  document.getElementById('closeModal').classList.add('active');
+}
+
+function updateCloseCost() {
+  if (!currentCloseId) return;
+  const t = state.trades.find(x => x.id === currentCloseId);
+  const exit = parseFloat(document.getElementById('c_exit').value);
+  if (!exit) { document.getElementById('closeCost').innerHTML = ''; return; }
+  const c = calcCost(t, exit);
+  const cls = c.netTL >= 0 ? 'pos' : 'neg';
+  let html = '<table class="cost-table" style="margin-top:14px;">';
+  html += `<tr><td>Brüt P&L</td><td>${fmt(c.grossTL, 'TL')}</td></tr>`;
+  html += `<tr><td>Komisyon</td><td>-${fmt(c.commTL, 'TL').replace('-','')}</td></tr>`;
+  if (c.bsmvTL > 0) html += `<tr><td>BSMV</td><td>-${fmt(c.bsmvTL, 'TL').replace('-','')}</td></tr>`;
+  if (c.fxTL > 0) html += `<tr><td>Döviz dönüşüm</td><td>-${fmt(c.fxTL, 'TL').replace('-','')}</td></tr>`;
+  if (c.taxTL > 0) html += `<tr><td>Vergi (%${state.settings.bracket})</td><td>-${fmt(c.taxTL, 'TL').replace('-','')}</td></tr>`;
+  html += `<tr class="total"><td>NET eline geçen</td><td class="pnl ${cls}">${fmt(c.netTL, 'TL')}</td></tr>`;
+  html += '</table>';
+  document.getElementById('closeCost').innerHTML = html;
+}
+
+function confirmClose() {
+  const t = state.trades.find(x => x.id === currentCloseId);
+  if (!t) return;
+  const exit = parseFloat(document.getElementById('c_exit').value);
+  if (!exit) return alert('Çıkış fiyatı gir');
+  const lesson = document.getElementById('c_lesson').value.trim();
+  if (!lesson) return alert('Bir cümle ders yaz, atlama.');
+  t.exit = exit;
+  t.closed = new Date().toISOString();
+  t.reason = document.getElementById('c_reason').value;
+  t.thesis_eval = document.getElementById('c_thesis').value;
+  t.lesson = lesson;
+  const c = calcCost(t, exit);
+  t.result = c;
+  save();
+  closeCloseModal();
+  switchTab('log');
+}
+
+function deleteTrade() {
+  if (!confirm('İşlemi tamamen silmek istediğine emin misin?')) return;
+  state.trades = state.trades.filter(x => x.id !== currentCloseId);
+  save();
+  closeCloseModal();
+  renderOpen();
+}
+
+function closeCloseModal() {
+  document.getElementById('closeModal').classList.remove('active');
+  currentCloseId = null;
+}
+
+function renderClosed() {
+  const closed = state.trades.filter(t => t.closed).sort((a,b) => new Date(b.closed) - new Date(a.closed));
+  const el = document.getElementById('closedList');
+  if (closed.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="ico">◇</div>Henüz kapanmış işlem yok.</div>';
+    return;
+  }
+  el.innerHTML = closed.map(t => {
+    const cls = t.result.netTL >= 0 ? 'pos' : 'neg';
+    const dt = new Date(t.closed).toLocaleDateString('tr-TR');
+    const tEval = t.thesis_eval === 'dogru' ? '✓ Tez' : t.thesis_eval === 'yanlis' ? '✗ Tez' : '? Tez';
+    return `
+      <div class="card">
+        <div class="row">
+          <div><span class="sym">${t.sym}</span><span class="mkt">${t.mkt}</span></div>
+          <div class="pnl ${cls}">${fmt(t.result.netTL, 'TL')}</div>
+        </div>
+        <div class="meta">
+          ${dt} · ${tEval} · ${t.reason}<br>
+          <em style="color:var(--fg-3);">Ders:</em> ${t.lesson}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============ STATS ============
+function renderStats() {
+  const closed = state.trades.filter(t => t.closed);
+  document.getElementById('s_total').textContent = closed.length;
+  if (closed.length === 0) {
+    ['s_wr','s_gross','s_net','s_comm','s_tax'].forEach(id => document.getElementById(id).textContent = '—');
+    ['q_skill','q_unlucky','q_lucky','q_lesson'].forEach(id => document.getElementById(id).textContent = '0');
+    document.getElementById('taxWarn').innerHTML = '';
+    return;
+  }
+  const wins = closed.filter(t => t.result.netTL > 0).length;
+  const wr = (wins / closed.length) * 100;
+  let gross = 0, net = 0, comm = 0, tax = 0;
+  let q = { skill:0, unlucky:0, lucky:0, lesson:0 };
+  closed.forEach(t => {
+    gross += t.result.grossTL;
+    net += t.result.netTL;
+    comm += t.result.commTL + t.result.bsmvTL + t.result.fxTL;
+    tax += t.result.taxTL;
+    const tOk = t.thesis_eval === 'dogru';
+    const win = t.result.netTL > 0;
+    if (tOk && win) q.skill++;
+    else if (tOk && !win) q.unlucky++;
+    else if (!tOk && win) q.lucky++;
+    else q.lesson++;
+  });
+  document.getElementById('s_wr').textContent = wr.toFixed(0) + '%';
+  document.getElementById('s_gross').textContent = fmt(gross, 'TL');
+  document.getElementById('s_net').textContent = fmt(net, 'TL');
+  document.getElementById('s_comm').textContent = fmt(comm, 'TL');
+  document.getElementById('s_tax').textContent = fmt(tax, 'TL');
+  document.getElementById('q_skill').textContent = q.skill;
+  document.getElementById('q_unlucky').textContent = q.unlucky;
+  document.getElementById('q_lucky').textContent = q.lucky;
+  document.getElementById('q_lesson').textContent = q.lesson;
+
+  const usTrades = closed.filter(t => t.mkt !== 'BIST' && t.result.grossTL > 0);
+  if (usTrades.length > 0) {
+    const usProfit = usTrades.reduce((a,t) => a + t.result.grossTL - t.result.commTL - t.result.fxTL, 0);
+    document.getElementById('taxWarn').innerHTML = `<div class="warn"><strong>Yurtdışı beyan uyarısı:</strong> ${usTrades.length} kârlı yurtdışı işlem var. Yıl sonu net kâr ${fmt(usProfit, 'TL')} → Mart ayında beyan zorunlu. Tahmini vergi: ${fmt(tax, 'TL')}.</div>`;
+  } else {
+    document.getElementById('taxWarn').innerHTML = '';
+  }
+}
+
+// ============ SETTINGS ============
+function openSettings() {
+  document.getElementById('set_usdtry').value = state.settings.usdtry;
+  document.getElementById('set_bracket').value = state.settings.bracket;
+  document.getElementById('set_bist_comm').value = state.settings.bist_comm;
+  document.getElementById('set_bsmv').value = state.settings.bsmv;
+  document.getElementById('set_us_comm').value = state.settings.us_comm;
+  document.getElementById('set_fx').value = state.settings.fx;
+  document.getElementById('settingsModal').classList.add('active');
+}
+function closeSettings() { document.getElementById('settingsModal').classList.remove('active'); }
+function saveSettings() {
+  state.settings.usdtry = parseFloat(document.getElementById('set_usdtry').value) || DEFAULTS.usdtry;
+  state.settings.bracket = parseInt(document.getElementById('set_bracket').value);
+  state.settings.bist_comm = parseFloat(document.getElementById('set_bist_comm').value) || DEFAULTS.bist_comm;
+  state.settings.bsmv = parseFloat(document.getElementById('set_bsmv').value) || DEFAULTS.bsmv;
+  state.settings.us_comm = parseFloat(document.getElementById('set_us_comm').value) || DEFAULTS.us_comm;
+  state.settings.fx = parseFloat(document.getElementById('set_fx').value) || DEFAULTS.fx;
+  save();
+  closeSettings();
+  if (document.getElementById('dash').classList.contains('active')) renderOpen();
+}
+
+// ============ EDUCATION ============
+const CONCEPTS = [
+  { t: 'Yarın yükseleni sabah seçemezsin', tag: 'Davranış', body: 'Piyasanın temel bilmecesi: bilgi sana ulaştığında zaten fiyatlanmıştır. PhD analistlerle dolu fonların çözemediği problemi sezgi ile çözmeyi beklemek matematiksel olarak negatif beklenen değer üretir. Yatırımın asıl edge\'i bilgide değil, zamanda ve disiplindedir.' },
+  { t: 'Compounding — bileşik etkisi', tag: 'Matematik', body: '%10 yıllık getiri 7 yılda parayı ikiye, 24 yılda 10 kat\'a çıkarır. Compounding\'in en güçlü yanı son yıllarda etkisini göstermesidir. Aynı sebepten, küçük kayıplar bileşik şekilde büyür — %50 kayıp telafi etmek için %100 kazanç gerekir.' },
+  { t: 'Recency bias — yakın geçmiş yanılgısı', tag: 'Davranış', body: 'İnsan zihni son 1-2 yılı geleceğe yansıtır. 2020-2021\'de Bitcoin %500 yükselince herkes kripto aldı; 2022\'de %70 düştü. Bir yatırımcı için en tehlikeli soru: "Geçen yıl ne kazandı?". Doğru soru: "Bu sınıfın 30 yıllık ortalaması ve dağılımı ne?"' },
+  { t: 'Diversifikasyon', tag: 'Risk', body: 'Tek bir hisseye %100, tüm yumurtaları tek sepete koymak demek. Akademik konsensus: 15-20 hissenin üzerinde idiosyncratic riskin büyük kısmı yok olur. Ama daha basit yol: endeks fonu — 100 hisseyi bir kalemde alırsın, ücret çok düşük.' },
+  { t: 'DCA — Dollar Cost Averaging', tag: 'Strateji', body: 'Düzenli aralıklarla sabit tutar yatırmak. Düşüş döneminde aynı parayla daha çok pay alırsın, yükselişte daha az. Sonuçta zaman içinde ortalama alış maliyetin piyasanın altında kalır. Timing\'in yenildiği ender stratejilerden biri.' },
+  { t: 'Mean reversion — ortalamaya dönüş', tag: 'Strateji', body: 'Aşırı yükselen veya düşen fiyatlar uzun vadede tarihsel ortalamalarına döner. Günlük "top gainer" ertesi gün ortalamadan kötü performans gösterir — akademik literatürde belgelenmiş. Bu yüzden "yükseleni al" stratejisi negatif EV üretir.' },
+  { t: 'P/E oranı — fiyat/kazanç', tag: 'Değerleme', body: 'Şirketin hisse fiyatı, hisse başına yıllık kârın kaç katı? Düşük PE = ucuz (genelde), yüksek PE = pahalı veya yüksek büyüme beklentisi. Nasdaq 100 medyan PE: 24. Şu anki: 38. Tarihsel olarak yüksek PE sonrası 10 yıllık getiri düşük gelmiş.' },
+  { t: 'Yield curve — verim eğrisi', tag: 'Makro', body: 'Devlet tahvili faizinin vade boyunca dağılımı. Normalde uzun vade > kısa vade. Tersine döndüğünde (inversion) tarihsel olarak resesyonu önceler — son 50 yılda 9/9 sinyal vermiş. Tahvil piyasası hisse piyasasından akıllıdır.' },
+  { t: 'VIX — korku endeksi', tag: 'Makro', body: 'S&P 500 opsiyon volatilitesi. Normal piyasa: 12-20, panik: 30+, kriz: 50+. VIX zirve yaptığı günler tarihsel olarak alım fırsatı olmuştur. Ama VIX düşükken — yani herkes rahatken — yüksek risk birikir.' },
+  { t: 'Drawdown — geri çekilme', tag: 'Risk', body: 'Bir yatırımın zirveden dibe kayıp yüzdesi. Maks drawdown stratejinin gerçek riskini gösterir. Yıllık %15 getiri kulağa hoş gelir ama %50 drawdown\'la gelmişse psikolojik olarak çok az insan kalır. Önemli olan ortalama değil, kötü senaryonun şiddeti.' },
+  { t: 'Sharpe ratio', tag: 'Matematik', body: '(Getiri − risksiz faiz) / volatilite. Bir birim risk başına ne kadar getiri. Sharpe 1: iyi, 2: çok iyi, 3+: olağanüstü (genelde data-mining). Sadece getiriye değil, risk-ayarlı getiriye bakmak profesyonel yaklaşım.' },
+  { t: 'Kelly Criterion — pozisyon büyüklüğü', tag: 'Matematik', body: 'Optimal bahis büyüklüğü = (kazanma olasılığı × ödül − kayıp olasılığı × kayıp) / ödül. Kelly\'nin yarısı veya çeyreği kullanmak (fractional Kelly) daha güvenli — full Kelly varyans yüksek olunca iflasa götürür.' },
+  { t: 'Black Swan — siyah kuğu', tag: 'Risk', body: 'Önceden öngörülemeyen, etkisi büyük olay. 2008 mortgage, 2020 COVID, 1987 Black Monday. Modelin "imkansız" dediği şey 10 yılda bir gerçekleşir. Bu yüzden portföyün hayatta kalması, getirisinden önce gelir.' },
+  { t: 'Carry trade', tag: 'Makro', body: 'Düşük faizli para birinden borçlanıp yüksek faizliye yatırmak. Yıllarca para basar, sonra kur döner ve bir gecede yıllık getiriyi siler. TL\'nin yıllarca carry hedefi olması ve sonra kriz patlaması klasik örnek.' },
+  { t: 'PMI — Satın Alma Yöneticileri Endeksi', tag: 'Makro', body: 'Şirketlerin gelecek üretim/sipariş beklentilerini ölçer. 50 üstü genişleme, 50 altı daralma. Tarihsel olarak resesyonu 3-6 ay önceler. Türkiye PMI 50 altına düşünce TÜFE\'den önce ekonomik yavaşlamayı görmüş olursun.' },
+  { t: 'Marjinal alıcı kavramı', tag: 'Değerleme', body: 'Bir varlığın fiyatını "en son alıcı" belirler — ortalama alıcı değil. Bu yüzden piyasa duygusal olabilir: çok az kişinin satması fiyatı düşürür. Liquid hisseler bile aslında küçük marjinal hareketle fiyatlanır.' },
+  { t: 'Survivorship bias — hayatta kalan yanılgısı', tag: 'Davranış', body: '"Şu fon 20 yıldır endeksi yenmiş" cümlesi yanıltıcı: 20 yıl önce başlayan 100 fondan kaybedenler kapanmıştır, sadece kazanan sayılır. Tüm "milyoner trader" hikayeleri aynı sorunla malul — başarısızlar konuşmaz.' },
+  { t: 'Hisseyi neden tutarsın?', tag: 'Strateji', body: 'Cevap "yükselsin diye" ise stratejin yok. Profesyonel yaklaşım: değer tezi (şirket X TL değer, fiyat Y\'de, fark Z), kalitite tezi (sektör/yönetim/marka), makro tezi (sektör rüzgar alıyor). Tez yoksa çıkış da yok.' },
+  { t: 'Stop-loss disiplini', tag: 'Risk', body: 'Pozisyonu açmadan önce nerede yanlış olduğunu kabul edeceğini belirle. %5? %10? Tez kırıldığı zaman? Bu çizgi geçilince — duygu girmesin — kapat. Profesyonel trader\'ları amatörlerden ayıran en büyük tek davranış.' },
+  { t: 'Asimetrik bahis', tag: 'Strateji', body: 'Riskin küçük, ödülün büyük olduğu pozisyonlar. %10 risk, %50 potansiyel. Win rate %40 bile olsa pozitif EV. Buffett ve Munger\'in stratejisinin matematiği bu — yıllarca beklemek, sonra fırsat geldiğinde büyük girmek.' },
+  { t: 'Korelasyon ≠ nedensellik', tag: 'Davranış', body: '"X yükseldiğinde Y de yükseldi" iki şeyin nedensel bağlantılı olduğunu göstermez. Üçüncü bir değişken (genelde makro: faiz, dolar) ikisini birden hareket ettiriyor olabilir. Tarihsel korelasyona dayalı stratejiler kriz zamanı çöker.' },
+  { t: 'Faiz — paranın zaman değeri', tag: 'Makro', body: 'Faiz yükseldiğinde hisse değerlemeleri düşer (gelecek nakit akışlarının bugünkü değeri azalır). Faiz düşerken hisseler yükselir — özellikle büyüme şirketleri. 2022 düşüşünün ana sebebi Fed\'in faizi sıfırdan %5\'e çıkarması.' },
+  { t: 'Enflasyon ve reel getiri', tag: 'Makro', body: 'Nominal %50 getiri, enflasyon %50 ise reel getiri %0. Türkiye gibi yüksek enflasyon ülkelerinde nominal rakamlar yanıltıcı. Servet ölçmenin doğru yolu satın alma gücü — TL faizinin kulağa hoş gelen %50\'si genelde reel olarak %5-10.' },
+  { t: 'Volatilite ≠ risk', tag: 'Risk', body: 'Akademik finans volatiliteyi risk sayar ama uzun vadeli yatırımcı için fiyat dalgalanması değil, kalıcı kayıp risktir. Buffett: "Volatilite bizim için fırsat, risk değil." Geçici %30 düşüş sorun değil — şirket iflas ediyorsa sorun.' },
+  { t: 'Endeks fonu — pasif yatırım', tag: 'Strateji', body: 'Piyasanın tamamını sahip olma. Çoğu aktif fon endeksi yenemez (15 yıl: %85 kaybeder). Düşük ücret, otomatik diversifikasyon, vergi etkin. S&P 500 endeks fonu Buffett\'in eşine bıraktığı portföyün %90\'ı.' },
+  { t: 'TER — yıllık fon ücreti', tag: 'Değerleme', body: 'Total Expense Ratio. %0.5 fon ile %2 fon arasında 30 yılda bileşik fark portföyün %30\'una yakın. Endeks fonu seçerken en kritik kriter: en düşük TER. TEFAS\'ta filtreleyebilirsin.' },
+  { t: 'Rebalancing — denkleme', tag: 'Strateji', body: 'Hedef dağılım %60 hisse %40 tahvil. Hisse %80\'e çıkınca sat, tahvile geç. Bu mekanik kural duygudan bağımsız "yükselende sat, düşende al" yapar. Yıllık 1 kez yeter — sık rebalancing maliyet üretir.' },
+  { t: 'Margin / kaldıraç', tag: 'Risk', body: 'Borç para ile yatırım. Yukarı çıkarken kazancı katlar, aşağı düşerken zararı katlar VE pozisyonu zorla kapattırır (margin call). Pozitif EV stratejiniz olsa bile kaldıraç sizi yolun ortasında iflas ettirebilir. "Long Term Capital" hikayesi.' },
+  { t: 'Insider buying — içeriden alım', tag: 'Strateji', body: 'Şirket CEO/CFO\'sunun kendi hissesinden alması güçlü sinyal — kendi parasıyla bahis koyuyor. SEC dosyalarından izlenebilir (Form 4). Akademik çalışmalar küçük ama anlamlı outperformance gösteriyor. Satış aynı kadar anlamlı değil (vergi, çeşitlendirme).' },
+  { t: 'Buy-and-hold disiplini', tag: 'Strateji', body: 'En iyi 10 günü kaçırırsan 20 yıllık getirinin yarısı silinir. En iyi günler kötü günlerin etrafında yoğunlaşır — yani satıp girmek pratikte mümkün değil. "Time in the market beats timing the market." Sıkıcı ama matematiksel olarak kazanan strateji.' }
+];
+
+const GLOSSARY = [
+  ['P/E', 'Fiyat/Kazanç oranı. Hisse fiyatının yıllık kâra oranı.'],
+  ['EPS', 'Hisse başına kâr (Earnings Per Share). Net kâr / hisse sayısı.'],
+  ['Drawdown', 'Zirveden dibe kayıp yüzdesi. Stratejinin gerçek risk göstergesi.'],
+  ['Sharpe Ratio', 'Risk-ayarlı getiri ölçüsü. (Getiri − risksiz faiz) / volatilite.'],
+  ['Volatility', 'Fiyatın dalgalanma derecesi. Yıllık standart sapma olarak ölçülür.'],
+  ['Bull / Bear', 'Yükselen / düşen piyasa. -%20 düşüş bear, +%20 yükseliş bull market sayılır.'],
+  ['DCA', 'Dollar Cost Averaging. Düzenli aralıklarla sabit tutar yatırma.'],
+  ['Mean reversion', 'Aşırı uçların ortalamaya dönme eğilimi.'],
+  ['Momentum', 'Yükselişte olanın yükselmeye devam etme eğilimi (kısa vadede zayıf, orta vadede güçlü).'],
+  ['Yield curve', 'Tahvil faizlerinin vade boyunca dağılımı.'],
+  ['Inversion', 'Yield curve\'ün tersine dönmesi — kısa vade faizi uzun vadeden yüksek.'],
+  ['VIX', 'S&P 500 implied volatilite endeksi. Korku endeksi.'],
+  ['PMI', 'Satın Alma Yöneticileri Endeksi. 50 üstü genişleme, altı daralma.'],
+  ['Carry trade', 'Düşük faizliden borçlan, yüksek faizliye yatır.'],
+  ['Hedge', 'Korunma. Ters pozisyon alarak riski azaltma.'],
+  ['Stop-loss', 'Belirlenen zarar seviyesinde otomatik kapanma.'],
+  ['Trailing stop', 'Fiyat yükseldikçe stop seviyesi de yukarı kayar.'],
+  ['Margin', 'Kaldıraçlı işlem için broker\'a yatırılan teminat.'],
+  ['Liquidation', 'Margin yetersiz kalınca pozisyonun zorla kapatılması.'],
+  ['Long / Short', 'Yükselişe / düşüşe oynama.'],
+  ['Spread', 'Alış-satış fiyatı arasındaki fark. Liquid hissede dar, ilişide geniş.'],
+  ['Slippage', 'Emir verdiğin fiyatla gerçekleşen fiyat arasındaki fark.'],
+  ['Survivorship bias', 'Sadece hayatta kalan örneklere bakıp ortalamayı abartma yanılgısı.'],
+  ['Recency bias', 'Yakın geçmişi geleceğe yansıtma yanılgısı.'],
+  ['Black Swan', 'Önceden öngörülemeyen, etkisi büyük olay.'],
+  ['Kelly Criterion', 'Bahis/pozisyon büyüklüğü için matematiksel optimum formül.'],
+  ['Alpha', 'Endeksin üzerindeki getiri. Aktif yönetimin kalitesi.'],
+  ['Beta', 'Hissenin piyasaya göre hareket derecesi. 1 = piyasa kadar, 2 = iki kat oynak.'],
+  ['Free float', 'Halka açık dolaşımdaki hisse oranı.'],
+  ['Market cap', 'Piyasa değeri. Fiyat × hisse sayısı.']
+];
+
+function renderEdu() {
+  const dayIdx = Math.floor((Date.now() / 86400000)) % CONCEPTS.length;
+  const c = CONCEPTS[dayIdx];
+  document.getElementById('conceptToday').innerHTML = `
+    <div class="concept-card">
+      <div class="day">Gün ${dayIdx + 1} / ${CONCEPTS.length}</div>
+      <div class="title">${c.t}</div>
+      <span class="tag">${c.tag}</span>
+      <div class="body" style="margin-top:10px;">${c.body}</div>
+    </div>
+  `;
+  document.getElementById('conceptList').innerHTML = CONCEPTS.map((c,i) => `
+    <div class="concept-card" style="border-left-width:1px;">
+      <div class="day">#${i+1} · ${c.tag}</div>
+      <div class="title" style="font-size:14px;">${c.t}</div>
+      <div class="body" style="font-size:13px; margin-top:6px;">${c.body}</div>
+    </div>
+  `).join('');
+  renderGlossary();
+}
+
+function renderGlossary() {
+  const q = (document.getElementById('glossSearch').value || '').toLowerCase();
+  const items = GLOSSARY.filter(([t,d]) => !q || t.toLowerCase().includes(q) || d.toLowerCase().includes(q));
+  document.getElementById('glossList').innerHTML = items.map(([t,d]) =>
+    `<div class="glossary-item"><div class="term">${t}</div><div class="def">${d}</div></div>`
+  ).join('') || '<div class="empty">Eşleşme yok.</div>';
+}
+
+// ============ INIT ============
+load();
+updateCurrency();
+renderOpen();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW:', e));
+  });
+}
+</script>
+</body>
+</html>
