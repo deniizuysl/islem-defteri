@@ -116,6 +116,42 @@
   .ac-item .name { color: var(--fg-2); font-size: 12px; margin-top: 2px; }
   .ac-item .sec { color: var(--fg-3); font-size: 11px; margin-top: 2px; }
   .ac-loading { padding: 10px 12px; color: var(--fg-3); font-size: 12px; }
+
+  .masthead { padding: 24px 0 18px; border-bottom: 1px solid var(--line); margin-bottom: 18px; position: relative; }
+  .masthead .dow { font-size: 11px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; }
+  .masthead .datedisplay { display: flex; align-items: baseline; gap: 14px; margin-top: 6px; line-height: 1; }
+  .masthead .datedisplay .day { font-size: 64px; color: var(--fg); font-weight: normal; letter-spacing: -2px; font-feature-settings: "lnum"; }
+  .masthead .datedisplay .month { font-size: 22px; color: var(--fg-2); letter-spacing: 1px; text-transform: uppercase; font-style: italic; }
+  .masthead .year { font-size: 11px; letter-spacing: 3px; color: var(--fg-3); margin-top: 4px; text-transform: uppercase; }
+
+  .portfolio-card { background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg-3) 100%); border: 1px solid var(--gold-2); border-radius: 6px; padding: 18px 18px 16px; margin-bottom: 22px; position: relative; overflow: hidden; }
+  .portfolio-card .pc-label { font-size: 10px; letter-spacing: 3px; color: var(--fg-3); text-transform: uppercase; }
+  .portfolio-card .pc-value { font-size: 36px; color: var(--gold); margin-top: 6px; letter-spacing: -1px; font-feature-settings: "tnum"; }
+  .portfolio-card .pc-sub { display: flex; gap: 14px; margin-top: 10px; font-size: 12px; color: var(--fg-2); }
+  .portfolio-card .pc-sub span.divider { color: var(--fg-3); }
+  .portfolio-card .pc-change { font-size: 13px; margin-top: 4px; }
+
+  .today-section { margin-bottom: 24px; }
+  .section-eyebrow { font-size: 10px; letter-spacing: 3px; color: var(--gold); text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+
+  .mover-row { display: grid; grid-template-columns: 60px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px dotted var(--line); font-size: 13px; }
+  .mover-row:last-child { border-bottom: none; }
+  .mover-row .pct { font-feature-settings: "tnum"; }
+  .mover-row .pct.pos { color: var(--green); }
+  .mover-row .pct.neg { color: var(--red); }
+  .mover-row .sym { color: var(--fg); letter-spacing: 1px; }
+  .mover-row .price { color: var(--fg-3); font-size: 12px; font-feature-settings: "tnum"; text-align: right; }
+
+  .next-event { display: flex; gap: 10px; align-items: baseline; padding: 6px 0; font-size: 13px; color: var(--fg-2); }
+  .next-event .dt { color: var(--gold); font-size: 11px; letter-spacing: 1px; min-width: 60px; }
+  .next-event .name { flex: 1; }
+
+  .concept-teaser { background: var(--bg-2); border-left: 3px solid var(--gold); padding: 14px 16px; border-radius: 0 4px 4px 0; cursor: pointer; transition: background 0.15s; }
+  .concept-teaser:active { background: var(--bg-3); }
+  .concept-teaser .ct-day { font-size: 10px; letter-spacing: 2px; color: var(--fg-3); text-transform: uppercase; }
+  .concept-teaser .ct-title { font-size: 16px; color: var(--gold); margin: 4px 0 6px; }
+  .concept-teaser .ct-body { font-size: 13px; color: var(--fg-2); line-height: 1.5; }
+  .concept-teaser .ct-more { font-size: 11px; color: var(--gold-2); margin-top: 8px; letter-spacing: 1px; text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -126,20 +162,50 @@
 </header>
 
 <nav class="tabs">
-  <button data-tab="dash" class="active" onclick="switchTab('dash')">Açık</button>
+  <button data-tab="today" class="active" onclick="switchTab('today')">Bugün</button>
   <button data-tab="market" onclick="switchTab('market')">Piyasa</button>
   <button data-tab="new" onclick="switchTab('new')">Yeni</button>
-  <button data-tab="stat" onclick="switchTab('stat')">İstatistik</button>
   <button data-tab="cal" onclick="switchTab('cal')">Takvim</button>
+  <button data-tab="stat" onclick="switchTab('stat')">İstatistik</button>
   <button data-tab="edu" onclick="switchTab('edu')">Eğitim</button>
   <button data-tab="log" onclick="switchTab('log')">Defter</button>
 </nav>
 
 <div class="container">
 
-  <section id="dash" class="active">
-    <h2>Açık Pozisyonlar</h2>
-    <div id="openList"></div>
+  <section id="today" class="active">
+    <div class="masthead">
+      <div class="dow" id="t_dow"></div>
+      <div class="datedisplay">
+        <span class="day" id="t_day"></span>
+        <span class="month" id="t_month"></span>
+      </div>
+      <div class="year" id="t_year"></div>
+    </div>
+
+    <div class="portfolio-card" id="t_portfolio"></div>
+
+    <div class="today-section" id="t_events_wrap">
+      <div class="section-eyebrow">Takvim</div>
+      <div id="t_events"></div>
+    </div>
+
+    <div class="today-section">
+      <div class="section-eyebrow">Piyasa nabzı</div>
+      <div id="t_movers">
+        <div style="color:var(--fg-3); font-size:13px; padding: 8px 0;">yükleniyor...</div>
+      </div>
+    </div>
+
+    <div class="today-section" id="t_positions_wrap">
+      <div class="section-eyebrow"><span>Açık Pozisyonlar</span><span id="t_pos_count" style="color:var(--fg-3); font-weight:normal;"></span></div>
+      <div id="openList"></div>
+    </div>
+
+    <div class="today-section">
+      <div class="section-eyebrow">Bugünün kavramı</div>
+      <div id="t_concept"></div>
+    </div>
   </section>
 
   <section id="market">
@@ -432,12 +498,129 @@ function switchTab(t) {
   document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
   document.getElementById(t).classList.add('active');
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
-  if (t === 'dash') renderOpen();
+  if (t === 'today') { renderToday(); fetchQuotes(); }
   if (t === 'market') { renderWatchlist(); fetchQuotes(); }
   if (t === 'stat') renderStats();
   if (t === 'cal') renderCalendar();
   if (t === 'edu') renderEdu();
   if (t === 'log') renderClosed();
+}
+
+// ============ TODAY (Home) ============
+function renderToday() {
+  const now = new Date();
+  const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const days = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+  const startOfYear = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now - startOfYear) / 86400000);
+
+  document.getElementById('t_dow').textContent = days[now.getDay()];
+  document.getElementById('t_day').textContent = now.getDate();
+  document.getElementById('t_month').textContent = months[now.getMonth()];
+  document.getElementById('t_year').textContent = now.getFullYear() + ' · ' + dayOfYear + '. gün';
+
+  const closed = state.trades.filter(t => t.closed);
+  const open = state.trades.filter(t => !t.closed);
+  const cap = state.settings.starting_capital;
+  const realized = closed.reduce((a, t) => a + t.result.netTL, 0);
+  const unrealized = open.reduce((a, t) => {
+    const c = calcCost(t, t.current);
+    return a + c.netTL;
+  }, 0);
+  const equity = cap + realized + unrealized;
+  const totalRet = ((equity - cap) / cap) * 100;
+  const retCls = totalRet >= 0 ? 'pos' : 'neg';
+
+  document.getElementById('t_portfolio').innerHTML = `
+    <div class="pc-label">Portföy Değeri</div>
+    <div class="pc-value">${fmt(equity, 'TL')}</div>
+    <div class="pc-change pnl ${retCls}">${totalRet >= 0 ? '+' : ''}${totalRet.toFixed(2)}% başlangıçtan</div>
+    <div class="pc-sub">
+      <span>${open.length} açık</span>
+      <span class="divider">·</span>
+      <span>${closed.length} kapalı</span>
+      <span class="divider">·</span>
+      <span>Başlangıç ${fmt(cap, 'TL')}</span>
+    </div>
+  `;
+
+  const today = now.toISOString().slice(0, 10);
+  const todayEvents = (typeof UPCOMING_EVENTS !== 'undefined') ? UPCOMING_EVENTS.filter(e => e.date === today) : [];
+  const futureEvents = (typeof UPCOMING_EVENTS !== 'undefined') ? UPCOMING_EVENTS.filter(e => e.date > today).slice(0, 3) : [];
+
+  const eventsEl = document.getElementById('t_events');
+  if (todayEvents.length > 0) {
+    eventsEl.innerHTML = '<div style="color:var(--fg-2); font-size:13px; margin-bottom:8px;">Bugün takvimde:</div>' +
+      todayEvents.map(e => {
+        const flag = e.country === 'TR' ? '🇹🇷' : '🇺🇸';
+        const dot = e.impact === 'high' ? '🔴' : e.impact === 'medium' ? '🟡' : '⚪';
+        return `<div class="next-event"><span class="dt">${e.time}</span><span class="name">${dot} ${flag} ${e.name}</span></div>`;
+      }).join('') +
+      (futureEvents.length > 0 ? `<div style="color:var(--fg-3); font-size:11px; margin-top:8px; padding-top:8px; border-top:1px dotted var(--line);">Sıradaki: ${futureEvents[0].name} · ${new Date(futureEvents[0].date).toLocaleDateString('tr-TR', {day:'numeric', month:'short'})}</div>` : '');
+  } else if (futureEvents.length > 0) {
+    eventsEl.innerHTML = '<div style="color:var(--fg-3); font-size:12px; margin-bottom:8px;">Bugün kayda değer olay yok. Yaklaşan:</div>' +
+      futureEvents.map(e => {
+        const d = new Date(e.date);
+        const dStr = d.toLocaleDateString('tr-TR', {day:'numeric', month:'short'});
+        const days = Math.round((d - now) / 86400000);
+        const flag = e.country === 'TR' ? '🇹🇷' : '🇺🇸';
+        const dot = e.impact === 'high' ? '🔴' : e.impact === 'medium' ? '🟡' : '⚪';
+        return `<div class="next-event"><span class="dt">${dStr} +${days}g</span><span class="name">${dot} ${flag} ${e.name}</span></div>`;
+      }).join('');
+  } else {
+    eventsEl.innerHTML = '<div style="color:var(--fg-3); font-size:12px; padding:6px 0;">Takvimde yaklaşan olay yok.</div>';
+  }
+
+  renderMovers();
+
+  document.getElementById('t_pos_count').textContent = open.length === 0 ? 'yok' : open.length + ' adet';
+  renderOpen();
+
+  const dayIdx = Math.floor(Date.now() / 86400000) % CONCEPTS.length;
+  const c = CONCEPTS[dayIdx];
+  const teaserBody = c.body.length > 180 ? c.body.substring(0, 180) + '…' : c.body;
+  document.getElementById('t_concept').innerHTML = `
+    <div class="concept-teaser" onclick="switchTab('edu')">
+      <div class="ct-day">Gün ${dayIdx + 1} · ${c.tag}</div>
+      <div class="ct-title">${c.t}</div>
+      <div class="ct-body">${teaserBody}</div>
+      <div class="ct-more">→ Devamı eğitim sekmesinde</div>
+    </div>
+  `;
+}
+
+function renderMovers() {
+  const el = document.getElementById('t_movers');
+  const valid = state.watchlist
+    .map(sym => {
+      const q = quoteCache[sym.toUpperCase()] || quoteCache[sym.toUpperCase() + '.IS'];
+      return q ? { sym, q } : null;
+    })
+    .filter(Boolean);
+
+  if (valid.length === 0) {
+    el.innerHTML = '<div style="color:var(--fg-3); font-size:12px; padding:6px 0;">Piyasa verisi yükleniyor...</div>';
+    return;
+  }
+
+  const sorted = [...valid].sort((a, b) => (b.q.changePct || 0) - (a.q.changePct || 0));
+  const top = sorted.slice(0, 3);
+  const bottom = sorted.slice(-3).reverse().filter(x => (x.q.changePct || 0) < 0);
+
+  const renderRow = ({ sym, q }) => {
+    const cls = (q.changePct || 0) >= 0 ? 'pos' : 'neg';
+    const cur = q.currency === 'TRY' ? '₺' : '$';
+    const pct = (q.changePct || 0).toFixed(2);
+    const price = (q.price || 0).toFixed(2);
+    return `<div class="mover-row" onclick="useSymbol('${sym}', '${q.symbol.endsWith('.IS') ? 'BIST' : 'NASDAQ'}', ${q.price})" style="cursor:pointer;">
+      <div class="pct ${cls}">${(q.changePct||0) >= 0 ? '+' : ''}${pct}%</div>
+      <div class="sym">${sym}</div>
+      <div class="price">${cur}${price}</div>
+    </div>`;
+  };
+
+  el.innerHTML = top.map(renderRow).join('') +
+    (bottom.length > 0 ? '<div style="font-size:10px; letter-spacing:2px; color:var(--fg-3); text-transform:uppercase; margin: 10px 0 4px;">Düşenler</div>' + bottom.map(renderRow).join('') : '');
 }
 
 // ============ AUTOCOMPLETE ============
@@ -575,6 +758,9 @@ async function fetchQuotes() {
     const dt = new Date();
     status.textContent = 'son: ' + dt.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
     renderWatchlist();
+    if (document.getElementById('today')?.classList.contains('active')) {
+      renderMovers();
+    }
   } catch (e) {
     status.textContent = 'hata';
     console.warn(e);
@@ -611,9 +797,9 @@ function useSymbol(sym, mkt, price) {
 function startQuotePolling() {
   if (quoteTimer) clearInterval(quoteTimer);
   quoteTimer = setInterval(() => {
-    if (document.getElementById('market').classList.contains('active')) {
-      fetchQuotes();
-    }
+    const onMarket = document.getElementById('market')?.classList.contains('active');
+    const onToday = document.getElementById('today')?.classList.contains('active');
+    if (onMarket || onToday) fetchQuotes();
   }, 60000);
 }
 
@@ -700,6 +886,7 @@ function addTrade() {
     closed: null
   });
   save();
+  if (document.getElementById('today')?.classList.contains('active')) renderToday();
 
   document.getElementById('f_sym').value = '';
   document.getElementById('f_price').value = '';
@@ -716,7 +903,7 @@ function renderOpen() {
   const open = state.trades.filter(t => !t.closed);
   const el = document.getElementById('openList');
   if (open.length === 0) {
-    el.innerHTML = '<div class="empty"><div class="ico">◇</div>Açık pozisyon yok.<br><br><button class="btn" style="max-width:240px;" onclick="switchTab(\'new\')">İlk İşlemi Aç</button></div>';
+    el.innerHTML = '<div style="color:var(--fg-3); font-size:13px; padding:14px 0; text-align:center;">Henüz açık pozisyon yok. <a onclick="switchTab(\'new\')" style="color:var(--gold); cursor:pointer; text-decoration:underline;">Yeni işlem aç</a></div>';
     return;
   }
   el.innerHTML = open.map(t => {
@@ -1504,7 +1691,8 @@ function renderGlossary() {
 // ============ INIT ============
 load();
 updateCurrency();
-renderOpen();
+renderToday();
+fetchQuotes();
 startQuotePolling();
 setupAutocomplete('f_sym', 'f_sym_drop');
 setupAutocomplete('m_add', 'm_add_drop');
