@@ -115,6 +115,7 @@
 
 <nav class="tabs">
   <button data-tab="dash" class="active" onclick="switchTab('dash')">Açık</button>
+  <button data-tab="market" onclick="switchTab('market')">Piyasa</button>
   <button data-tab="new" onclick="switchTab('new')">Yeni</button>
   <button data-tab="stat" onclick="switchTab('stat')">İstatistik</button>
   <button data-tab="edu" onclick="switchTab('edu')">Eğitim</button>
@@ -126,6 +127,22 @@
   <section id="dash" class="active">
     <h2>Açık Pozisyonlar</h2>
     <div id="openList"></div>
+  </section>
+
+  <section id="market">
+    <h2 style="display:flex; align-items:center; justify-content:space-between;">
+      <span>Piyasa</span>
+      <span id="marketStatus" style="font-size:11px; color:var(--fg-3); font-family:Georgia;"></span>
+    </h2>
+    <div style="display:flex; gap:8px;">
+      <input id="m_add" placeholder="Sembol ekle: THYAO, AAPL..." style="flex:1;" />
+      <button class="icon-btn" onclick="addWatch()" style="flex:none; width:auto; padding:0 16px;">+</button>
+    </div>
+    <div id="watchList" style="margin-top:14px;"></div>
+    <div style="font-size:11px; color:var(--fg-3); text-align:center; margin-top:16px; line-height:1.6;">
+      Veri kaynağı: Yahoo Finance · 15-20 dk gecikmeli<br>
+      BIST sembolleri otomatik .IS uzantısı alır
+    </div>
   </section>
 
   <section id="new">
@@ -291,6 +308,7 @@ const DEFAULTS = {
 let state = {
   trades: [],
   notes: [],
+  watchlist: ['THYAO', 'ASELS', 'TUPRS', 'KCHOL', 'AAPL', 'NVDA', 'TSLA', 'MSFT'],
   settings: { ...DEFAULTS }
 };
 
@@ -303,6 +321,9 @@ function load() {
       const parsed = JSON.parse(s);
       state = { ...state, ...parsed };
       state.settings = { ...DEFAULTS, ...(parsed.settings || {}) };
+      if (!Array.isArray(state.watchlist) || state.watchlist.length === 0) {
+        state.watchlist = ['THYAO', 'ASELS', 'TUPRS', 'KCHOL', 'AAPL', 'NVDA', 'TSLA', 'MSFT'];
+      }
     }
   } catch (e) { console.warn(e); }
 }
@@ -358,9 +379,120 @@ function switchTab(t) {
   document.getElementById(t).classList.add('active');
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
   if (t === 'dash') renderOpen();
+  if (t === 'market') { renderWatchlist(); fetchQuotes(); }
   if (t === 'stat') renderStats();
   if (t === 'edu') renderEdu();
   if (t === 'log') renderClosed();
+}
+
+// ============ WATCHLIST ============
+let quoteCache = {};
+let quoteTimer = null;
+
+function renderWatchlist() {
+  const el = document.getElementById('watchList');
+  if (state.watchlist.length === 0) {
+    el.innerHTML = '<div class="empty"><div class="ico">◇</div>Henüz sembol yok.<br>Yukarıdan ekle.</div>';
+    return;
+  }
+  el.innerHTML = state.watchlist.map(sym => {
+    const q = quoteCache[sym.toUpperCase()] || quoteCache[sym.toUpperCase() + '.IS'];
+    if (!q) {
+      return `
+        <div class="card" style="opacity:0.6;">
+          <div class="row">
+            <div><span class="sym">${sym}</span><span class="mkt">yükleniyor</span></div>
+            <button class="icon-btn" style="width:28px; height:28px; font-size:12px;" onclick="event.stopPropagation(); removeWatch('${sym}')">×</button>
+          </div>
+        </div>
+      `;
+    }
+    const cls = (q.changePct || 0) >= 0 ? 'pos' : 'neg';
+    const isUS = !q.symbol.endsWith('.IS');
+    const curSym = q.currency === 'TRY' ? '₺' : '$';
+    const priceFmt = (q.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const chgFmt = (q.change || 0).toFixed(2);
+    const pctFmt = (q.changePct || 0).toFixed(2);
+    return `
+      <div class="card" onclick="useSymbol('${sym}', '${isUS ? 'NASDAQ' : 'BIST'}', ${q.price})" style="cursor:pointer;">
+        <div class="row">
+          <div>
+            <span class="sym">${sym}</span>
+            <span class="mkt">${isUS ? 'US' : 'BIST'}${q.marketState && q.marketState !== 'REGULAR' ? ' · ' + q.marketState : ''}</span>
+          </div>
+          <button class="icon-btn" style="width:28px; height:28px; font-size:12px; padding:0;" onclick="event.stopPropagation(); removeWatch('${sym}')">×</button>
+        </div>
+        <div class="row" style="margin-top:8px; align-items:baseline;">
+          <div style="font-size:20px; color:var(--fg);">${curSym}${priceFmt}</div>
+          <div class="pnl ${cls}" style="font-size:14px;">
+            ${(q.change || 0) >= 0 ? '+' : ''}${chgFmt}
+            <span style="margin-left:6px;">(${(q.changePct || 0) >= 0 ? '+' : ''}${pctFmt}%)</span>
+          </div>
+        </div>
+        <div class="meta" style="margin-top:6px;">
+          ${q.shortName || ''}
+          ${q.dayLow && q.dayHigh ? ` · Gün: ${q.dayLow.toFixed(2)}–${q.dayHigh.toFixed(2)}` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function fetchQuotes() {
+  if (state.watchlist.length === 0) return;
+  const status = document.getElementById('marketStatus');
+  status.textContent = 'yükleniyor...';
+  try {
+    const sym = state.watchlist.join(',');
+    const r = await fetch('/api/quote?s=' + encodeURIComponent(sym));
+    if (!r.ok) throw new Error('http ' + r.status);
+    const data = await r.json();
+    if (data.quotes) {
+      data.quotes.forEach(q => { quoteCache[q.symbol] = q; });
+    }
+    const dt = new Date();
+    status.textContent = 'son: ' + dt.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+    renderWatchlist();
+  } catch (e) {
+    status.textContent = 'hata';
+    console.warn(e);
+  }
+}
+
+function addWatch() {
+  const input = document.getElementById('m_add');
+  const sym = input.value.trim().toUpperCase();
+  if (!sym) return;
+  if (state.watchlist.includes(sym)) { alert('Zaten listede'); return; }
+  state.watchlist.push(sym);
+  save();
+  input.value = '';
+  renderWatchlist();
+  fetchQuotes();
+}
+
+function removeWatch(sym) {
+  state.watchlist = state.watchlist.filter(s => s !== sym);
+  save();
+  renderWatchlist();
+}
+
+function useSymbol(sym, mkt, price) {
+  document.getElementById('f_mkt').value = mkt;
+  document.getElementById('f_sym').value = sym;
+  document.getElementById('f_price').value = price;
+  updateCurrency();
+  updateCostPreview();
+  switchTab('new');
+}
+
+function startQuotePolling() {
+  if (quoteTimer) clearInterval(quoteTimer);
+  quoteTimer = setInterval(() => {
+    if (document.getElementById('market').classList.contains('active')) {
+      fetchQuotes();
+    }
+  }, 60000);
 }
 
 // ============ CURRENCY UI ============
@@ -716,6 +848,7 @@ function renderGlossary() {
 load();
 updateCurrency();
 renderOpen();
+startQuotePolling();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

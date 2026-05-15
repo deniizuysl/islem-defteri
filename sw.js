@@ -1,4 +1,4 @@
-const CACHE = 'defter-v1';
+const CACHE = 'defter-v2';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -16,6 +16,8 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+  if (url.pathname.startsWith('/api/')) return;
   e.respondWith(
     caches.match(e.request).then((r) => r || fetch(e.request).catch(() => caches.match('./')))
   );
