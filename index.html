@@ -836,6 +836,27 @@ async function fetchQuotes() {
     renderWatchlist();
     if (document.getElementById('today')?.classList.contains('active')) {
       renderMovers();
+      renderOpen();
+      const openTrades = state.trades.filter(t => !t.closed);
+      const cap = state.settings.starting_capital;
+      const realized = state.trades.filter(t => t.closed).reduce((a, t) => a + t.result.netTL, 0);
+      const unrealized = openTrades.reduce((a, t) => {
+        const live = quoteCache[t.sym.toUpperCase()] || quoteCache[t.sym.toUpperCase() + '.IS'];
+        return a + calcCost(t, live?.price || t.current).netTL;
+      }, 0);
+      const equity = cap + realized + unrealized;
+      const totalRet = ((equity - cap) / cap) * 100;
+      const retCls = totalRet >= 0 ? 'pos' : 'neg';
+      const card = document.getElementById('t_portfolio');
+      if (card) {
+        const valEl = card.querySelector('.pc-value');
+        const chgEl = card.querySelector('.pc-change');
+        if (valEl) valEl.textContent = fmt(equity, 'TL');
+        if (chgEl) {
+          chgEl.className = 'pc-change pnl ' + retCls;
+          chgEl.textContent = (totalRet >= 0 ? '+' : '') + totalRet.toFixed(2) + '% başlangıçtan';
+        }
+      }
     }
     requestAnimationFrame(() => {
       Object.entries(changes).forEach(([sym, dir]) => {
@@ -1108,7 +1129,8 @@ function addTrade() {
   document.getElementById('f_sector_info').innerHTML = '';
   document.getElementById('costPreview').innerHTML = '';
   window._lastSelectedSymbol = null;
-  switchTab('dash');
+  fetchQuotes();
+  switchTab('today');
 }
 
 function renderOpen() {
