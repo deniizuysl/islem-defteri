@@ -1,4 +1,4 @@
-const CACHE = 'defter-v15';
+const CACHE = 'defter-v16';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (e) => {

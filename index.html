@@ -529,7 +529,7 @@ const DEFAULTS = {
   bist_comm: 0.4,
   bsmv: 5,
   us_comm: 0.3,
-  fx: 1.0,
+  fx: 0.2,
   starting_capital: 10000,
   finnhub_key: '',
   poll_seconds: 15
@@ -573,11 +573,13 @@ function calcCost(trade, exitPrice) {
   const volumeLocal = (entry + (exit || entry)) * qty;
 
   const commRate = isUS ? s.us_comm / 100 : s.bist_comm / 100;
-  const commLocal = volumeLocal * commRate;
+  // commRate is round-trip total. volumeLocal is sum of both legs.
+  // Per-leg rate = commRate/2, total cost = volumeLocal × per-leg rate = volumeLocal × commRate/2
+  const commLocal = volumeLocal * commRate / 2;
   const bsmvLocal = isUS ? 0 : commLocal * (s.bsmv / 100);
 
   let fxLocal = 0;
-  if (isUS) fxLocal = volumeLocal * (s.fx / 100);
+  if (isUS) fxLocal = volumeLocal * (s.fx / 100) / 2;
 
   const grossTL = isUS ? grossLocal * s.usdtry : grossLocal;
   const commTL = isUS ? commLocal * s.usdtry : commLocal;
