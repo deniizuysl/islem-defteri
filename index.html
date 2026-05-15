@@ -88,9 +88,9 @@
   .pnl.neg { color: var(--red); }
 
   label { display: block; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--fg-3); margin: 12px 0 6px; }
-  input, select, textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--line); color: var(--fg); padding: 10px 12px; font-family: inherit; font-size: 15px; border-radius: 4px; }
+  input, select, textarea { width: 100%; background: var(--bg-2); border: 1px solid var(--line); color: var(--fg); padding: 10px 12px; font-family: inherit; font-size: 16px; border-radius: 4px; }
   input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold-2); }
-  textarea { min-height: 90px; resize: vertical; font-size: 14px; line-height: 1.5; }
+  textarea { min-height: 90px; resize: vertical; font-size: 16px; line-height: 1.5; }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
   .btn { display: inline-block; background: var(--gold); color: var(--bg); border: none; padding: 12px 18px; font-family: inherit; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 16px; }
@@ -126,7 +126,8 @@
   .glossary-item .term { color: var(--gold); font-size: 14px; }
   .glossary-item .def { color: var(--fg-2); font-size: 13px; margin-top: 4px; line-height: 1.5; }
 
-  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: flex-start; justify-content: center; padding: 20px; z-index: 100; overflow-y: auto; }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: flex-start; justify-content: center; padding: 20px; z-index: 100; overflow-y: auto; cursor: pointer; }
+  .modal-content { cursor: default; }
   .modal.active { display: flex; }
   .modal-content { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 20px; width: 100%; max-width: 520px; }
   .modal-content h2 { margin-top: 0; }
@@ -151,6 +152,9 @@
   .ac-item .name { color: var(--fg-2); font-size: 12px; margin-top: 2px; }
   .ac-item .sec { color: var(--fg-3); font-size: 11px; margin-top: 2px; }
   .ac-loading { padding: 10px 12px; color: var(--fg-3); font-size: 12px; }
+
+  .gl-term { color: var(--gold); border-bottom: 1px dotted var(--gold-2); cursor: pointer; }
+  .gl-term:active { background: rgba(200, 160, 70, 0.12); }
 
   .masthead { padding: 24px 0 18px; border-bottom: 1px solid var(--line); margin-bottom: 18px; position: relative; }
   .masthead .dow { font-size: 11px; letter-spacing: 4px; color: var(--gold); text-transform: uppercase; }
@@ -375,8 +379,48 @@
 
 </div>
 
+<!-- Edit Trade Modal -->
+<div class="modal" id="editModal" onclick="if(event.target===this) closeEdit()">
+  <div class="modal-content">
+    <h2>İşlemi Düzenle</h2>
+    <div id="editSummary"></div>
+
+    <label>Giriş Fiyatı <span id="e_cur" class="pill">TL</span></label>
+    <input id="e_entry" type="number" step="0.01" />
+
+    <div class="grid-2">
+      <div>
+        <label>Adet</label>
+        <input id="e_qty" type="number" step="0.0001" />
+      </div>
+      <div>
+        <label>Yön</label>
+        <select id="e_side">
+          <option value="long">Long</option>
+          <option value="short">Short</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Tez</label>
+    <textarea id="e_thesis"></textarea>
+
+    <button class="btn" onclick="saveEdit()">Kaydet</button>
+    <button class="btn secondary" onclick="closeEdit()">İptal</button>
+  </div>
+</div>
+
+<!-- Glossary Popup -->
+<div class="modal" id="glossPopup" onclick="if(event.target===this) closeGloss()">
+  <div class="modal-content" style="max-width: 420px;">
+    <h2 id="glossTerm" style="margin: 0 0 12px;"></h2>
+    <div id="glossDef" style="font-size: 14px; line-height: 1.6; color: var(--fg-2);"></div>
+    <button class="btn secondary" onclick="closeGloss()" style="margin-top: 16px;">Kapat</button>
+  </div>
+</div>
+
 <!-- Chart Modal -->
-<div class="modal" id="chartModal">
+<div class="modal" id="chartModal" onclick="if(event.target===this) closeChart()">
   <div class="modal-content" style="max-width: 720px; padding: 16px;">
     <h2 style="margin: 0 0 12px; display:flex; justify-content:space-between; align-items:baseline;">
       <span id="chartTitle"></span>
@@ -387,7 +431,7 @@
 </div>
 
 <!-- Settings Modal -->
-<div class="modal" id="settingsModal">
+<div class="modal" id="settingsModal" onclick="if(event.target===this) closeSettings()">
   <div class="modal-content">
     <h2>Ayarlar</h2>
 
@@ -428,13 +472,20 @@
     <input id="set_finnhub" type="text" placeholder="finnhub.io üzerinden ücretsiz" />
     <div style="font-size:11px; color:var(--fg-3); margin-top:4px;">ABD hisseleri için gerçek zamanlı WebSocket. Boş bırakırsan Yahoo gecikmeli polling kullanılır.</div>
 
-    <button class="btn" onclick="saveSettings()">Kaydet</button>
+    <div style="margin: 18px 0 8px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 11px; letter-spacing: 2px; color: var(--gold); text-transform: uppercase;">Veri Yedek</div>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <button class="btn secondary" style="margin: 0; flex: 1;" onclick="exportData()">Yedek Al (JSON)</button>
+      <button class="btn secondary" style="margin: 0; flex: 1;" onclick="importData()">Yedek Yükle</button>
+    </div>
+    <div style="font-size:11px; color:var(--fg-3); margin-top:6px;">İşlemler, watchlist ve ayarlar tek dosyada. Telefon değiştirirsen geri yükle.</div>
+
+    <button class="btn" onclick="saveSettings()" style="margin-top: 22px;">Kaydet</button>
     <button class="btn secondary" onclick="closeSettings()">İptal</button>
   </div>
 </div>
 
 <!-- Close Trade Modal -->
-<div class="modal" id="closeModal">
+<div class="modal" id="closeModal" onclick="if(event.target===this) closeCloseModal()">
   <div class="modal-content">
     <h2>Pozisyonu Kapat</h2>
     <div id="closeSummary"></div>
@@ -811,11 +862,14 @@ function renderWatchlist() {
 }
 
 async function fetchQuotes() {
-  if (state.watchlist.length === 0) return;
+  const watchSyms = state.watchlist.map(s => s.toUpperCase());
+  const openSyms = state.trades.filter(t => !t.closed).map(t => t.sym.toUpperCase());
+  const allSyms = [...new Set([...watchSyms, ...openSyms])];
+  if (allSyms.length === 0) return;
   const status = document.getElementById('marketStatus');
-  status.textContent = 'yükleniyor...';
+  if (status) status.textContent = 'yükleniyor...';
   try {
-    const sym = state.watchlist.join(',');
+    const sym = allSyms.join(',');
     const r = await fetch('/api/quote?s=' + encodeURIComponent(sym));
     if (!r.ok) throw new Error('http ' + r.status);
     const data = await r.json();
@@ -1154,9 +1208,10 @@ function renderOpen() {
             <span class="sym">${t.sym}</span>
             <span class="mkt">${t.mkt} · ${t.side}${isLive ? ' · LIVE' : ''}</span>
           </div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <div class="pnl ${cls}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <div class="pnl ${cls}" style="margin-right:4px;">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
             <button class="icon-btn" style="width:28px; height:28px; font-size:13px; padding:0;" onclick="event.stopPropagation(); openChart('${t.sym}', '${t.mkt}')" title="Grafik">📊</button>
+            <button class="icon-btn" style="width:28px; height:28px; font-size:12px; padding:0;" onclick="event.stopPropagation(); openEdit(${t.id})" title="Düzenle">✎</button>
           </div>
         </div>
         ${t.sector ? `<div style="font-size:11px; color:var(--fg-3); margin-top:4px;">${t.name || ''} · ${t.sector}</div>` : ''}
@@ -1236,6 +1291,117 @@ function closeCloseModal() {
   currentCloseId = null;
 }
 
+// ============ EDIT TRADE ============
+let currentEditId = null;
+function openEdit(id) {
+  currentEditId = id;
+  const t = state.trades.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('e_cur').textContent = t.mkt === 'BIST' ? 'TL' : 'USD';
+  document.getElementById('e_entry').value = t.entry;
+  document.getElementById('e_qty').value = t.qty;
+  document.getElementById('e_side').value = t.side;
+  document.getElementById('e_thesis').value = t.thesis || '';
+  document.getElementById('editSummary').innerHTML = `<div class="info"><strong>${t.sym}</strong> · ${t.mkt}${t.sector ? ' · ' + t.sector : ''}<br>Açıldığı tarih: ${new Date(t.opened).toLocaleDateString('tr-TR')}</div>`;
+  document.getElementById('editModal').classList.add('active');
+}
+function closeEdit() {
+  document.getElementById('editModal').classList.remove('active');
+  currentEditId = null;
+}
+function saveEdit() {
+  const t = state.trades.find(x => x.id === currentEditId);
+  if (!t) return;
+  const entry = parseFloat(document.getElementById('e_entry').value);
+  const qty = parseFloat(document.getElementById('e_qty').value);
+  const thesis = document.getElementById('e_thesis').value.trim();
+  if (!entry || entry <= 0) return alert('Geçerli fiyat gir');
+  if (!qty || qty <= 0) return alert('Geçerli adet gir');
+  if (thesis.length < 20) return alert('Tez en az 20 karakter olmalı');
+  t.entry = entry;
+  t.qty = qty;
+  t.side = document.getElementById('e_side').value;
+  t.thesis = thesis;
+  save();
+  closeEdit();
+  if (document.getElementById('today')?.classList.contains('active')) renderToday();
+  if (document.getElementById('market')?.classList.contains('active')) renderWatchlist();
+}
+
+// ============ GLOSSARY POPUP ============
+function showGloss(term) {
+  const entry = GLOSSARY.find(([t]) => t.toLowerCase() === term.toLowerCase());
+  if (!entry) return;
+  document.getElementById('glossTerm').textContent = entry[0];
+  document.getElementById('glossDef').textContent = entry[1];
+  document.getElementById('glossPopup').classList.add('active');
+}
+function closeGloss() {
+  document.getElementById('glossPopup').classList.remove('active');
+}
+
+function linkGlossary(text) {
+  if (!text || typeof GLOSSARY === 'undefined') return text;
+  const sorted = [...GLOSSARY].sort((a,b) => b[0].length - a[0].length);
+  let result = text;
+  sorted.forEach(([term]) => {
+    const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`(^|[\\s\\(])(${escaped})(?=[\\s\\),.;:!?]|$)`, 'gi');
+    result = result.replace(re, (m, pre, t) => {
+      return pre + `<span class="gl-term" onclick="showGloss('${term.replace(/'/g, "\\'")}'); event.stopPropagation();">${t}</span>`;
+    });
+  });
+  return result;
+}
+
+// ============ JSON EXPORT / IMPORT ============
+function exportData() {
+  const data = JSON.stringify({
+    version: 2,
+    exported: new Date().toISOString(),
+    trades: state.trades,
+    watchlist: state.watchlist,
+    settings: state.settings
+  }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `defter-yedek-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (!parsed.trades || !Array.isArray(parsed.trades)) throw new Error('Geçersiz format');
+        if (!confirm(`${parsed.trades.length} işlem, ${(parsed.watchlist || []).length} watchlist sembol bulundu. Mevcut veriyi YEDEK ile değiştir?`)) return;
+        if (parsed.trades) state.trades = parsed.trades;
+        if (parsed.watchlist) state.watchlist = parsed.watchlist;
+        if (parsed.settings) state.settings = { ...DEFAULTS, ...parsed.settings };
+        save();
+        renderToday();
+        alert('Yedek başarıyla yüklendi.');
+      } catch (err) {
+        alert('Yedek okunamadı: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
 function renderClosed() {
   const closed = state.trades.filter(t => t.closed).sort((a,b) => new Date(b.closed) - new Date(a.closed));
   const el = document.getElementById('closedList');
@@ -1280,13 +1446,21 @@ async function fetchBenchmark(symbol, range) {
 
 function computeEquitySeries() {
   const closed = state.trades.filter(t => t.closed).sort((a,b) => new Date(a.closed) - new Date(b.closed));
+  const open = state.trades.filter(t => !t.closed);
   const cap = state.settings.starting_capital;
-  if (closed.length === 0) return { points: [], firstDate: null, lastDate: null };
+
+  if (closed.length === 0 && open.length === 0) return { points: [], firstDate: null, lastDate: null };
 
   const firstOpen = state.trades.reduce((earliest, t) => {
     const d = new Date(t.opened);
     return earliest === null || d < earliest ? d : earliest;
   }, null);
+
+  const unrealized = open.reduce((sum, t) => {
+    const live = quoteCache[t.sym.toUpperCase()] || quoteCache[t.sym.toUpperCase() + '.IS'];
+    const cur = live?.price || t.current;
+    return sum + calcCost(t, cur).netTL;
+  }, 0);
 
   const points = [{ t: firstOpen.getTime(), v: cap }];
   let running = cap;
@@ -1294,8 +1468,8 @@ function computeEquitySeries() {
     running += t.result.netTL;
     points.push({ t: new Date(t.closed).getTime(), v: running });
   });
-  points.push({ t: Date.now(), v: running });
-  return { points, firstDate: firstOpen, lastDate: new Date(), running };
+  points.push({ t: Date.now(), v: running + unrealized });
+  return { points, firstDate: firstOpen, lastDate: new Date(), running: running + unrealized };
 }
 
 function pickRange(days) {
@@ -2059,7 +2233,8 @@ const GLOSSARY = [
 ];
 
 function fmtBody(s) {
-  return (s || '').split('\n\n').map(p => '<p style="margin: 0 0 10px;">' + p.replace(/\n/g, '<br>') + '</p>').join('');
+  const linked = linkGlossary(s || '');
+  return linked.split('\n\n').map(p => '<p style="margin: 0 0 10px;">' + p.replace(/\n/g, '<br>') + '</p>').join('');
 }
 
 function renderEdu() {
