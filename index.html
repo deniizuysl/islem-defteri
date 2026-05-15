@@ -118,6 +118,7 @@
   <button data-tab="market" onclick="switchTab('market')">Piyasa</button>
   <button data-tab="new" onclick="switchTab('new')">Yeni</button>
   <button data-tab="stat" onclick="switchTab('stat')">İstatistik</button>
+  <button data-tab="cal" onclick="switchTab('cal')">Takvim</button>
   <button data-tab="edu" onclick="switchTab('edu')">Eğitim</button>
   <button data-tab="log" onclick="switchTab('log')">Defter</button>
 </nav>
@@ -202,6 +203,15 @@
     </div>
 
     <div id="taxWarn"></div>
+  </section>
+
+  <section id="cal">
+    <h2>Yaklaşan Olaylar</h2>
+    <div id="upcomingEvents"></div>
+
+    <h2 style="margin-top: 24px;">Olay Türleri — Ne Anlama Gelir?</h2>
+    <input id="evFilter" placeholder="Ara: faiz, enflasyon, fed..." oninput="renderEventTypes()" />
+    <div id="eventTypes" style="margin-top: 8px;"></div>
   </section>
 
   <section id="edu">
@@ -381,6 +391,7 @@ function switchTab(t) {
   if (t === 'dash') renderOpen();
   if (t === 'market') { renderWatchlist(); fetchQuotes(); }
   if (t === 'stat') renderStats();
+  if (t === 'cal') renderCalendar();
   if (t === 'edu') renderEdu();
   if (t === 'log') renderClosed();
 }
@@ -781,6 +792,245 @@ const CONCEPTS = [
   { t: 'Insider buying — içeriden alım', tag: 'Strateji', body: 'Şirket CEO/CFO\'sunun kendi hissesinden alması güçlü sinyal — kendi parasıyla bahis koyuyor. SEC dosyalarından izlenebilir (Form 4). Akademik çalışmalar küçük ama anlamlı outperformance gösteriyor. Satış aynı kadar anlamlı değil (vergi, çeşitlendirme).' },
   { t: 'Buy-and-hold disiplini', tag: 'Strateji', body: 'En iyi 10 günü kaçırırsan 20 yıllık getirinin yarısı silinir. En iyi günler kötü günlerin etrafında yoğunlaşır — yani satıp girmek pratikte mümkün değil. "Time in the market beats timing the market." Sıkıcı ama matematiksel olarak kazanan strateji.' }
 ];
+
+// ============ EVENT TYPES — eğitici katalog ============
+const EVENT_TYPES = [
+  {
+    id: 'tcmb_faiz', country: 'TR', name: 'TCMB Faiz Kararı', impact: 'high',
+    cadence: 'Her ayın son Perşembesi',
+    what: 'Türkiye Cumhuriyet Merkez Bankası\'nın politika faizini belirlediği toplantı. Şu anki faiz seviyesini açıklar.',
+    why: 'Faiz, TL\'nin değerini, kredi maliyetlerini, hisse değerlemelerini doğrudan etkiler. Türkiye gibi yüksek enflasyon ülkelerinde her toplantı kritik — beklenmeyen yöne bir hamle kuru ve borsayı bir günde %5-10 hareket ettirebilir.',
+    reaction: 'Faiz indirimi: TL zayıflar (kur yükselir), BIST kısa vadede yükselir (ucuz para), ama enflasyon kaygısı artarsa banka hisseleri kötü etkilenir. Faiz artışı: TL güçlenir, BIST düşer (özellikle yüksek borçlu şirketler), bankalar kazanan.'
+  },
+  {
+    id: 'tufe', country: 'TR', name: 'TÜFE / ÜFE (Enflasyon)', impact: 'high',
+    cadence: 'Her ayın 3. iş günü, TÜİK tarafından',
+    what: 'Tüketici Fiyat Endeksi (TÜFE) ve Üretici Fiyat Endeksi (ÜFE) — bir önceki ayki fiyat artışı. Yıllık ve aylık olarak açıklanır.',
+    why: 'Enflasyon doğrudan TCMB\'nin faiz kararını etkiler. Beklentiden yüksek TÜFE → TCMB\'nin sıkılaşma baskısı → BIST için olumsuz. Reel getiri hesaplamasının temelidir.',
+    reaction: 'Beklentinin üzeri: TL satışı, BIST düşüş, tahvil faizleri yükselir. Beklentinin altı: TL alımı, BIST rallisi. ÜFE beklentiden yüksek → şirketlerin maliyet baskısı sinyali, kâr marjı endişesi.'
+  },
+  {
+    id: 'fed_fomc', country: 'US', name: 'Fed FOMC Faiz Kararı', impact: 'high',
+    cadence: 'Yılda 8 kez (yaklaşık her 6 haftada bir Çarşamba)',
+    what: 'ABD Merkez Bankası\'nın (Federal Reserve) faiz kararı. Powell\'ın basın toplantısı dahil.',
+    why: 'Dünyanın en önemli faiz toplantısı. Sadece ABD\'yi değil, küresel risk iştahını, dolar endeksini, gelişen piyasaları (BIST dahil) etkiler. Powell\'ın "tonu" rakam kadar önemli.',
+    reaction: 'Faiz indirim sinyali: Nasdaq + S&P rallisi, dolar zayıflar, altın yükselir, gelişen piyasa hisseleri çekici. Şahin (hawkish) ton: tech hisseleri sertçe düşer, savunma sektörü ve değer hisseleri görece korunur.'
+  },
+  {
+    id: 'cpi', country: 'US', name: 'ABD CPI (Tüketici Enflasyonu)', impact: 'high',
+    cadence: 'Her ayın 10-15\'i arası, sabah 08:30 ET',
+    what: 'ABD\'deki bir önceki ay enflasyon verisi. Headline CPI ve gıda+enerji hariç Core CPI ayrı açıklanır.',
+    why: 'Fed\'in faiz kararını şekillendiren tek numaralı veri. Beklenti farkı %0.1 bile olsa piyasa keskin tepki verir.',
+    reaction: 'Beklenti üstü: tahvil faizleri sıçrar, Nasdaq düşer, dolar güçlenir. Beklenti altı: Nasdaq rallisi, dolar zayıflar, altın yükselir. Türk yatırımcı için: dolar hareketi BIST\'i indirgemeli etkiler.'
+  },
+  {
+    id: 'nfp', country: 'US', name: 'Non-Farm Payrolls (İstihdam)', impact: 'high',
+    cadence: 'Her ayın ilk Cuması, sabah 08:30 ET',
+    what: 'ABD\'de tarım dışı sektörlerde önceki ay yaratılan iş sayısı. İşsizlik oranı ve ortalama saatlik ücret de aynı anda açıklanır.',
+    why: 'Fed\'in çift mandatından biri istihdam. Güçlü istihdam → faiz indirimi gecikir. Zayıf istihdam → resesyon kaygısı veya faiz indirim umudu (durum bağımlı).',
+    reaction: 'Çok güçlü veri: tahvil satışı, hisse karışık (önce düşüş, sonra ekonomi güçlü demek diye toparlama). Çok zayıf veri: önce düşüş (resesyon kaygısı), sonra ralli (Fed indirir mantığı). Goldilocks — orta, iyi haber.'
+  },
+  {
+    id: 'pce', country: 'US', name: 'Core PCE (Fed\'in Tercih Ettiği Enflasyon)', impact: 'high',
+    cadence: 'Her ayın son haftası, Cuma sabah 08:30 ET',
+    what: 'Personal Consumption Expenditures — Fed\'in resmi enflasyon hedefinde kullandığı ölçüm. Core (gıda+enerji hariç) PCE en kritik.',
+    why: 'CPI daha tanınmış olsa da, Fed politikasında PCE belirleyici. %2 hedefe yakınlığı doğrudan faiz beklentilerini şekillendirir.',
+    reaction: 'CPI ile benzer ama daha sessiz tepki. Beklenti üstü → tahvil faizleri yükselir, hisse hafif düşer. Beklenti altı → faiz indirim umudu artar, Nasdaq rallisi.'
+  },
+  {
+    id: 'gdp_us', country: 'US', name: 'ABD GSYİH (GDP)', impact: 'medium',
+    cadence: 'Çeyrek başına 3 kez (Advance, Second, Final), ~28. günler',
+    what: 'ABD\'nin çeyreklik büyüme oranı. İlk açıklama (Advance) en çok piyasa hareketi yaratır, sonraki revizeler az.',
+    why: 'Resesyon sinyali en güçlü göstergelerinden biri. Üst üste 2 çeyrek negatif → teknik resesyon.',
+    reaction: 'Güçlü GDP: hisse + dolar yükselir, ama Fed sıkılaşma kaygısı varsa karışık. Zayıf GDP: Fed indirim umudu (hisse yukarı) veya panik (hisse aşağı), ekonomik döngüye bağlı.'
+  },
+  {
+    id: 'pmi', country: 'TR/US', name: 'PMI (Satın Alma Yöneticileri Endeksi)', impact: 'medium',
+    cadence: 'Her ayın ilk iş gününde (manufacturing) ve 3. (services)',
+    what: 'Şirketlerin gelecek üretim/sipariş beklentilerini ölçen endeks. 50 üstü genişleme, altı daralma.',
+    why: 'Resesyonu 3-6 ay önceler. TÜFE\'den önce ekonomik yavaşlamayı görmenin en hızlı yolu.',
+    reaction: '50 altına ilk düşüş: tahvil rallisi (faiz indirim umudu), savunma hisseleri yukarı, döngüsel sektörler aşağı. 50 üstü güçlü: ekonomi sağlam mesajı.'
+  },
+  {
+    id: 'unemployment_tr', country: 'TR', name: 'Türkiye İşsizlik Oranı', impact: 'low',
+    cadence: 'Her ayın yaklaşık 15\'inde, TÜİK',
+    what: '3 ay önceki ay için işsizlik verisi. Genç işsizliği, geniş tanım dahil ayrı kategorilerde.',
+    why: 'Türkiye\'de iç tüketim ve sosyal istikrar göstergesi. Faiz kararını doğrudan etkilemez ama bütçe dengesi/iç talep beklentisini şekillendirir.',
+    reaction: 'BIST için kısa vadeli etki düşük. Ama kötü veri zincir mağazalar/perakende hisselerini kısa vadede zayıflatır.'
+  },
+  {
+    id: 'cari', country: 'TR', name: 'Cari İşlemler Dengesi', impact: 'medium',
+    cadence: 'Her ayın yaklaşık 11\'inde, TCMB',
+    what: 'Türkiye\'nin ihracat-ithalat farkı (mal+hizmet+gelir). Açık veya fazla olarak yıllık trend takip edilir.',
+    why: 'TL\'nin yapısal değer baskısının ana ölçütü. Sürekli yüksek cari açık → TL satış baskısı, kur yukarı.',
+    reaction: 'Beklenenden büyük açık: TL zayıflama, dolar yükselişi, ihracatçı hisseleri (THYAO, ASELS) lehine, ithalatçı (Otomotiv, beyaz eşya) aleyhine. Fazla veya küçük açık: TL güçlenme, BIST yukarı.'
+  },
+  {
+    id: 'retail_us', country: 'US', name: 'ABD Perakende Satışlar', impact: 'medium',
+    cadence: 'Her ayın yaklaşık 15\'inde, sabah 08:30 ET',
+    what: 'ABD\'deki tüketici harcamalarının önceki ay rakamı. GSYİH\'nin yaklaşık %70\'i tüketici harcaması.',
+    why: 'Resesyon olup olmadığının en doğrudan göstergelerinden biri. Tüketici hâlâ harcıyorsa resesyon zor.',
+    reaction: 'Güçlü veri: hisseler yukarı, özellikle perakende (Walmart, Costco, Amazon). Zayıf veri: tüm hisselerde satış baskısı, savunma sektörü görece korunur.'
+  },
+  {
+    id: 'industrial_prod_tr', country: 'TR', name: 'Sanayi Üretimi', impact: 'low',
+    cadence: 'Her ayın yaklaşık 12\'sinde, TÜİK',
+    what: 'İmalat, madencilik ve enerji üretiminin önceki aya göre değişimi.',
+    why: 'Türkiye ekonomisinin reel sektör nabzı. PMI ile birlikte yorumlanmalı.',
+    reaction: 'Beklenti altı: BIST sanayi hisselerinde kısa vadeli satış. Beklenti üstü: KCHOL, EREGL, TUPRS gibi büyük sanayi gruplarında pozitif etki.'
+  },
+  {
+    id: 'opec', country: 'GLOBAL', name: 'OPEC+ Toplantısı', impact: 'medium',
+    cadence: 'Yılda yaklaşık 6 kez, çoğunlukla Pazar',
+    what: 'OPEC ve OPEC+ üyelerinin üretim kotalarını belirledikleri toplantı. Üretim arttırma/azaltma kararları.',
+    why: 'Petrol fiyatını doğrudan belirler. Türkiye ithalatçı ülke olduğu için Brent fiyatı cari açık ve enflasyonu doğrudan etkiler.',
+    reaction: 'Üretim kesintisi: Brent yukarı, TUPRS gibi rafineriler kazanan ama uzun vadede Türkiye için enflasyonist (TL zayıf, TÜFE yukarı). Üretim artışı: Brent aşağı, Türkiye için iyi haber.'
+  },
+  {
+    id: 'earnings', country: 'GLOBAL', name: 'Bilanço Sezonu', impact: 'medium',
+    cadence: 'Çeyrek sonrası 4-8 hafta',
+    what: 'Şirketlerin çeyreklik kâr ve gelir açıklamaları. ABD\'de Ocak, Nisan, Temmuz, Ekim ortaları; Türkiye\'de bir ay daha geç.',
+    why: 'Tek tek hisselerin gerçek performansını gösteren temel veri. Bütün stratejilerin nihai testi burada.',
+    reaction: 'Beklenti üstü kâr + iyi forward guidance: hisse %5-20 yukarı. Beklenti üstü ama zayıf guidance: hisse düşebilir (forward looking piyasa). Magnificent 7 bilançoları endeksin tamamını hareket ettirir.'
+  },
+  {
+    id: 'fomc_minutes', country: 'US', name: 'FOMC Toplantı Tutanakları', impact: 'medium',
+    cadence: 'Her FOMC toplantısından 3 hafta sonra Çarşamba 14:00 ET',
+    what: 'FOMC toplantısının detaylı tutanakları. Üye görüşleri, gelecek faiz patikası tartışmaları.',
+    why: 'Toplantıda söylenmeyen nüansları gösterir. "Bazı üyeler" gibi ifadeler beklenti şekillendirir.',
+    reaction: 'Şahin (hawkish) ton: tahvil satışı, hisse hafif düşüş. Güvercin (dovish) ton: hisse rallisi, Nasdaq özellikle yukarı. Çoğu zaman tepki sınırlı çünkü toplantı zaten haftalar önce.'
+  },
+  {
+    id: 'jobless_claims', country: 'US', name: 'Haftalık İşsizlik Başvuruları', impact: 'low',
+    cadence: 'Her Perşembe sabah 08:30 ET',
+    what: 'Bir hafta önceki yeni işsizlik başvurusu sayısı (initial claims) ve devam edenler (continuing).',
+    why: 'Yüksek frekanslı istihdam göstergesi. NFP\'den daha taze ama daha gürültülü.',
+    reaction: 'Trendsel artış (4-6 hafta üst üste): resesyon sinyali, hisse satış, tahvil rallisi. Tek hafta sapması nadiren ciddiye alınır.'
+  },
+  {
+    id: 'options_expiry', country: 'US', name: 'Opsiyon Vade Günü (Quad Witching)', impact: 'medium',
+    cadence: 'Üçer aylık (Mart, Haziran, Eylül, Aralık) 3. Cuma',
+    what: 'Hisse opsiyonları, endeks opsiyonları ve futures\'lerin aynı gün vade dolması. Çok yüksek hacim.',
+    why: 'Hisse fiyatları opsiyon "pin" noktalarına çekilebilir. Volatilite artar. Tek günlük teknik etki.',
+    reaction: 'Belirli fiyat seviyelerine "yapışma" eğilimi. Gün içi büyük hacim ama gün sonu yön belirsiz. Tek günlük olay, ertesi gün normal işleyiş.'
+  },
+  {
+    id: 'tcmb_enflasyon_raporu', country: 'TR', name: 'TCMB Enflasyon Raporu', impact: 'high',
+    cadence: 'Yılda 4 kez (Şubat, Mayıs, Ağustos, Kasım)',
+    what: 'TCMB başkanının enflasyon tahminini ve para politikası planını sunduğu kapsamlı rapor + basın toplantısı.',
+    why: 'Faiz kararından çok daha geniş bir politika resmi sunar. Tahmin revizyonları piyasayı uzun süre yönlendirir.',
+    reaction: 'Yıl sonu enflasyon tahmini yukarı revize: TL satış, BIST düşüş, tahvil faizleri sıçrar. Aşağı revize: TL alım, BIST yukarı.'
+  },
+  {
+    id: 'butce', country: 'TR', name: 'Merkezi Bütçe Dengesi', impact: 'low',
+    cadence: 'Her ayın yaklaşık 15-17\'sinde',
+    what: 'Hazine ve Maliye Bakanlığı\'nın aylık bütçe gelir-gider dengesi açıklaması.',
+    why: 'Mali disiplin göstergesi. Yüksek bütçe açığı → tahvil arzı baskısı, faiz yukarı.',
+    reaction: 'Genelde sınırlı piyasa tepkisi. Ama beklenmeyen büyük açık → tahvil satışı, banka hisseleri etkilenir.'
+  },
+  {
+    id: 'ism', country: 'US', name: 'ISM Manufacturing Index', impact: 'medium',
+    cadence: 'Her ayın ilk iş günü, sabah 10:00 ET',
+    what: 'ABD imalat sektörü yöneticilerinin görüşlerini ölçen endeks. PMI\'nın ABD versiyonu.',
+    why: '50 altı kalıcılaşınca tarihsel olarak resesyon habercisi. Sub-indeksleri (yeni siparişler, fiyatlar) ayrıca takip edilir.',
+    reaction: '50 altına düşüş: resesyon kaygısı, hisse satış, savunma sektörü görece güçlü. Fiyat sub-endeksi yüksek: enflasyonist sinyal.'
+  }
+];
+
+// ============ UPCOMING EVENTS — yaklaşan somut tarihler ============
+const UPCOMING_EVENTS = [
+  { date: '2026-05-22', time: '14:00', country: 'TR', name: 'TCMB Faiz Kararı', type: 'tcmb_faiz', impact: 'high', note: 'Mayıs toplantısı — TÜFE trend yorumu kritik.' },
+  { date: '2026-05-22', time: '15:30', country: 'TR', name: 'TCMB Para Politikası Kurulu Toplantı Özeti', type: 'tcmb_faiz', impact: 'medium', note: 'Kararla aynı gün gerekçe açıklaması.' },
+  { date: '2026-05-28', time: '15:30', country: 'US', name: 'Q1 GDP (İkinci Tahmin)', type: 'gdp_us', impact: 'medium', note: 'Revizyon — büyük sürpriz beklenmez.' },
+  { date: '2026-05-29', time: '15:30', country: 'US', name: 'Core PCE (Nisan)', type: 'pce', impact: 'high', note: 'Fed\'in tercih ettiği enflasyon. Haziran FOMC için kritik girdi.' },
+  { date: '2026-06-02', time: '17:00', country: 'US', name: 'ISM Manufacturing (Mayıs)', type: 'ism', impact: 'medium', note: 'Aylık imalat nabzı.' },
+  { date: '2026-06-03', time: '10:00', country: 'TR', name: 'TÜFE & ÜFE (Mayıs)', type: 'tufe', impact: 'high', note: 'Mayıs enflasyon verisi — TCMB Haziran toplantısının ana girdisi.' },
+  { date: '2026-06-05', time: '15:30', country: 'US', name: 'Non-Farm Payrolls (Mayıs)', type: 'nfp', impact: 'high', note: 'İlk Cuma — istihdam + işsizlik + ücret.' },
+  { date: '2026-06-11', time: '10:00', country: 'TR', name: 'Cari İşlemler Dengesi (Nisan)', type: 'cari', impact: 'medium', note: 'TL\'nin yapısal baskı göstergesi.' },
+  { date: '2026-06-11', time: '15:30', country: 'US', name: 'ABD CPI (Mayıs)', type: 'cpi', impact: 'high', note: 'FOMC haftası öncesi son enflasyon verisi — kritik.' },
+  { date: '2026-06-12', time: '10:00', country: 'TR', name: 'Sanayi Üretimi (Nisan)', type: 'industrial_prod_tr', impact: 'low', note: 'Reel sektör nabzı.' },
+  { date: '2026-06-15', time: '10:00', country: 'TR', name: 'İşsizlik Oranı (Mart)', type: 'unemployment_tr', impact: 'low', note: '3 ay önceki dönem.' },
+  { date: '2026-06-17', time: '15:30', country: 'US', name: 'Perakende Satışlar (Mayıs)', type: 'retail_us', impact: 'medium', note: 'Tüketici harcamalarının nabzı.' },
+  { date: '2026-06-17', time: '21:00', country: 'US', name: 'Fed FOMC Faiz Kararı', type: 'fed_fomc', impact: 'high', note: 'Powell basın toplantısı 21:30. Yılın en kritik FOMC\'lerinden — yıl ortası dot plot revizyonu.' },
+  { date: '2026-06-19', time: '17:00', country: 'US', name: 'Quad Witching (Opsiyon Vade)', type: 'options_expiry', impact: 'medium', note: 'Çeyreklik opsiyon vadesi — yüksek volatilite.' },
+  { date: '2026-06-26', time: '14:00', country: 'TR', name: 'TCMB Faiz Kararı', type: 'tcmb_faiz', impact: 'high', note: 'Mayıs TÜFE sonrası ilk toplantı.' },
+  { date: '2026-06-26', time: '15:30', country: 'US', name: 'Core PCE (Mayıs)', type: 'pce', impact: 'high', note: 'FOMC sonrası ilk PCE.' },
+  { date: '2026-07-01', time: '17:00', country: 'US', name: 'ISM Manufacturing (Haziran)', type: 'ism', impact: 'medium', note: '' },
+  { date: '2026-07-03', time: '10:00', country: 'TR', name: 'TÜFE & ÜFE (Haziran)', type: 'tufe', impact: 'high', note: '' },
+  { date: '2026-07-03', time: '15:30', country: 'US', name: 'Non-Farm Payrolls (Haziran)', type: 'nfp', impact: 'high', note: 'Bağımsızlık Günü öncesi — piyasa erken kapanır.' }
+];
+
+function renderCalendar() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcoming = UPCOMING_EVENTS
+    .filter(e => new Date(e.date) >= today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const flagFor = c => c === 'TR' ? '🇹🇷' : c === 'US' ? '🇺🇸' : '🌐';
+  const impactPill = i => {
+    const cls = i === 'high' ? 'gold' : '';
+    const txt = i === 'high' ? 'YÜKSEK' : i === 'medium' ? 'ORTA' : 'DÜŞÜK';
+    return `<span class="pill ${cls}">${txt}</span>`;
+  };
+
+  if (upcoming.length === 0) {
+    document.getElementById('upcomingEvents').innerHTML = '<div class="empty">Yaklaşan olay yok. Takvim güncellemesi gerekebilir.</div>';
+  } else {
+    let lastDate = '';
+    document.getElementById('upcomingEvents').innerHTML = upcoming.map(e => {
+      const d = new Date(e.date);
+      const dStr = d.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' });
+      const showHeader = e.date !== lastDate;
+      lastDate = e.date;
+      const dayDiff = Math.round((d - today) / 86400000);
+      const dayLabel = dayDiff === 0 ? 'BUGÜN' : dayDiff === 1 ? 'YARIN' : '+' + dayDiff + ' gün';
+      return `
+        ${showHeader ? `<div style="font-size:11px; letter-spacing:2px; color:var(--gold); text-transform:uppercase; margin: 16px 0 6px;">${dStr} <span style="color:var(--fg-3); margin-left:8px;">${dayLabel}</span></div>` : ''}
+        <div class="card" onclick="showEventDetail('${e.type}', '${e.date}')" style="cursor:pointer; border-left: 3px solid ${e.impact === 'high' ? 'var(--gold)' : 'var(--line)'};">
+          <div class="row">
+            <div>
+              <span style="font-size:14px;">${flagFor(e.country)}</span>
+              <span class="sym" style="font-size:14px; margin-left:6px;">${e.name}</span>
+            </div>
+            <span style="color:var(--fg-3); font-size:12px;">${e.time}</span>
+          </div>
+          <div class="meta" style="margin-top:6px;">
+            ${impactPill(e.impact)} ${e.note ? '· ' + e.note : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  renderEventTypes();
+}
+
+function showEventDetail(typeId, eventDate) {
+  const t = EVENT_TYPES.find(x => x.id === typeId);
+  if (!t) return;
+  const flag = t.country === 'TR' ? '🇹🇷' : t.country === 'US' ? '🇺🇸' : '🌐';
+  alert(`${flag} ${t.name}\n\n📅 Düzen: ${t.cadence}\n\n📌 NEDİR?\n${t.what}\n\n💡 NİYE ÖNEMLİ?\n${t.why}\n\n📈 PİYASA TEPKİSİ\n${t.reaction}`);
+}
+
+function renderEventTypes() {
+  const q = (document.getElementById('evFilter')?.value || '').toLowerCase();
+  const items = EVENT_TYPES.filter(t =>
+    !q || t.name.toLowerCase().includes(q) || t.what.toLowerCase().includes(q) || t.why.toLowerCase().includes(q)
+  );
+  const flagFor = c => c === 'TR' ? '🇹🇷' : c === 'US' ? '🇺🇸' : '🌐';
+  document.getElementById('eventTypes').innerHTML = items.map(t => `
+    <div class="concept-card" style="border-left-color: ${t.impact === 'high' ? 'var(--gold)' : 'var(--gold-2)'};">
+      <div class="day">${flagFor(t.country)} ${t.country} · ${t.impact === 'high' ? 'YÜKSEK ETKİ' : t.impact === 'medium' ? 'ORTA ETKİ' : 'DÜŞÜK ETKİ'} · ${t.cadence}</div>
+      <div class="title">${t.name}</div>
+      <div class="body">
+        <strong style="color:var(--fg);">Nedir:</strong> ${t.what}<br><br>
+        <strong style="color:var(--fg);">Niye önemli:</strong> ${t.why}<br><br>
+        <strong style="color:var(--fg);">Piyasa tepkisi:</strong> ${t.reaction}
+      </div>
+    </div>
+  `).join('') || '<div class="empty">Eşleşme yok.</div>';
+}
 
 const GLOSSARY = [
   ['P/E', 'Fiyat/Kazanç oranı. Hisse fiyatının yıllık kâra oranı.'],
