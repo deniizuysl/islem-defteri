@@ -245,6 +245,11 @@
       <div id="openList"></div>
     </div>
 
+    <div class="today-section" id="t_sector_wrap" style="display:none;">
+      <div class="section-eyebrow">Sektör Dağılımı</div>
+      <div id="t_sectors"></div>
+    </div>
+
     <div class="today-section">
       <div class="section-eyebrow">Bugünün kavramı</div>
       <div id="t_concept"></div>
@@ -316,7 +321,24 @@
     <label>Tez (neden bu hisse, neden bugün) — min 20 karakter</label>
     <textarea id="f_thesis" placeholder="Tezini yaz. 'Sezgi' yeterli değil. Hangi gözlem, hangi haber, hangi göstergeyle?"></textarea>
 
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;">
+      <div>
+        <label>Stop fiyatı <span id="f_stop_cur" class="pill">TL</span></label>
+        <input id="f_stop" type="number" step="0.01" placeholder="0.00" />
+        <div style="font-size:10px; color:var(--fg-3); margin-top:2px;">Yanılırsam çıkış</div>
+      </div>
+      <div>
+        <label>Hedef fiyatı <span id="f_target_cur" class="pill">TL</span></label>
+        <input id="f_target" type="number" step="0.01" placeholder="0.00" />
+        <div style="font-size:10px; color:var(--fg-3); margin-top:2px;">Haklıysam kâr al</div>
+      </div>
+    </div>
+
+    <label>Tahmini süre (gün, opsiyonel)</label>
+    <input id="f_horizon" type="number" step="1" min="1" placeholder="örn. 90 gün" />
+
     <div id="costPreview"></div>
+    <div id="sizeWarning"></div>
 
     <button class="btn" onclick="addTrade()">İşlemi Aç</button>
   </section>
@@ -381,6 +403,18 @@
     <div id="closedList"></div>
   </section>
 
+</div>
+
+<!-- Onboarding Modal -->
+<div class="modal" id="onboardModal">
+  <div class="modal-content" style="max-width: 480px;">
+    <div id="onboardSlide"></div>
+    <div style="display:flex; gap:8px; margin-top:18px;">
+      <button class="btn secondary" style="margin:0; flex:1;" onclick="prevOnboard()" id="onboard_prev">← Önceki</button>
+      <button class="btn" style="margin:0; flex:2;" onclick="nextOnboard()" id="onboard_next">Devam →</button>
+    </div>
+    <div style="text-align:center; margin-top:10px; font-size:11px; color:var(--fg-3);" id="onboard_dots"></div>
+  </div>
 </div>
 
 <!-- Edit Trade Modal -->
@@ -622,6 +656,69 @@ function switchTab(t) {
   if (t === 'log') renderClosed();
 }
 
+// ============ ONBOARDING ============
+const ONBOARD_SLIDES = [
+  {
+    icon: '📓',
+    title: 'Hoş geldin',
+    body: 'Bu bir <strong>sanal trade defteri</strong>. Gerçek para riski yok — kafanda hisse alıp satarsın, sistem maliyet/vergi hesaplar, sen disiplin geliştirirsin.\n\nAmacın hızlı zenginleşmek değil — <strong>hangi kararlar kazanır, hangi kararlar öğretir</strong> bunu görmek.'
+  },
+  {
+    icon: '🎯',
+    title: 'Her trade için tez yaz',
+    body: 'Sembol seçip almak yetmez. Sistem zorlar:\n\n1. <strong>Tez</strong>: "Niye bu hisse, niye bugün?" — 20+ karakter, sezgi yetmez\n2. <strong>Stop fiyatı</strong>: "Yanılırsam burada çıkarım"\n3. <strong>Hedef fiyatı</strong>: "Haklıysam burada kâr alırım"\n\nBunları yazmadan açtığın trade <em>kumar</em>, yazdıkların <em>strateji</em>.'
+  },
+  {
+    icon: '📊',
+    title: 'Kapatınca post-mortem',
+    body: 'Pozisyonu kapatınca 3 soru cevaplarsın:\n\n• Çıkış sebebi (hedef/stop/duygusal/...)\n• <strong>Tezin doğru muydu?</strong> (sonuçtan bağımsız)\n• Ne öğrendin?\n\nİstatistik sekmesi seni <strong>4 sınıfa</strong> ayırır: skill (tez ✓ + kâr), bad luck (tez ✓ + zarar), lucky (tez ✗ + kâr — tehlikeli!), lesson (tez ✗ + zarar).'
+  },
+  {
+    icon: '📚',
+    title: 'Eğitim her gün',
+    body: 'Eğitim sekmesinde <strong>30 günlük rotasyonlu kavram</strong> var (compounding, drawdown, mean reversion, VIX, kelly...).\n\n<strong>Sözlükte 30 terim</strong> — kavram metinlerindeki altın renkli kelimelere dokun, tanım açılır.\n\n<strong>Takvim</strong> sekmesinde TCMB faiz, ABD enflasyon gibi yaklaşan ekonomik olaylar + niye önemli açıklamaları.'
+  },
+  {
+    icon: '🚀',
+    title: 'Başla',
+    body: 'İlk trade\'ini açmak için:\n\n1. <strong>Piyasa</strong> sekmesinden bir sembole bak (veya kendi ekle)\n2. <strong>Yeni İşlem</strong>de sembolü seç (autocomplete fiyatı otomatik çeker)\n3. Tutarı yaz, tez+stop+hedef koy\n4. <strong>İşlemi Aç</strong>\n\nİlk trade için tavsiye: küçük başla (portföyün %2-5\'i). Disiplin yap, sonuca bakma.'
+  }
+];
+
+let onboardIdx = 0;
+function showOnboard() {
+  onboardIdx = 0;
+  renderOnboardSlide();
+  document.getElementById('onboardModal').classList.add('active');
+}
+function renderOnboardSlide() {
+  const slide = ONBOARD_SLIDES[onboardIdx];
+  const html = `
+    <div style="text-align:center; font-size:42px; margin-bottom:8px;">${slide.icon}</div>
+    <h2 style="text-align:center; margin: 0 0 14px;">${slide.title}</h2>
+    <div style="font-size:14px; line-height:1.65; color:var(--fg-2);">${slide.body.split('\n\n').map(p => '<p style="margin:0 0 10px;">'+p.replace(/\n/g,'<br>')+'</p>').join('')}</div>
+  `;
+  document.getElementById('onboardSlide').innerHTML = html;
+  document.getElementById('onboard_prev').style.visibility = onboardIdx === 0 ? 'hidden' : 'visible';
+  document.getElementById('onboard_next').textContent = onboardIdx === ONBOARD_SLIDES.length - 1 ? 'Başla' : 'Devam →';
+  document.getElementById('onboard_dots').innerHTML = ONBOARD_SLIDES.map((_, i) =>
+    `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; margin:0 3px; background:${i === onboardIdx ? 'var(--gold)' : 'var(--line)'};"></span>`
+  ).join('');
+}
+function nextOnboard() {
+  if (onboardIdx < ONBOARD_SLIDES.length - 1) {
+    onboardIdx++;
+    renderOnboardSlide();
+  } else {
+    state.settings.onboarded = true;
+    save();
+    document.getElementById('onboardModal').classList.remove('active');
+  }
+}
+function prevOnboard() {
+  if (onboardIdx > 0) { onboardIdx--; renderOnboardSlide(); }
+}
+
 // ============ MENTOR ÖZETİ ============
 function buildSummary() {
   const now = new Date();
@@ -802,6 +899,7 @@ function renderToday() {
 
   document.getElementById('t_pos_count').textContent = open.length === 0 ? 'yok' : open.length + ' adet';
   renderOpen();
+  renderSectors();
 
   const dayIdx = Math.floor(Date.now() / 86400000) % CONCEPTS.length;
   const c = CONCEPTS[dayIdx];
@@ -815,6 +913,57 @@ function renderToday() {
       <div class="ct-more">→ Devamı eğitim sekmesinde</div>
     </div>
   `;
+}
+
+function renderSectors() {
+  const open = state.trades.filter(t => !t.closed);
+  const wrap = document.getElementById('t_sector_wrap');
+  const el = document.getElementById('t_sectors');
+  if (!wrap || !el) return;
+  if (open.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+
+  const groups = {};
+  open.forEach(t => {
+    const live = quoteCache[t.sym.toUpperCase()] || quoteCache[t.sym.toUpperCase() + '.IS'];
+    const cur = live?.price || t.current;
+    const valueTL = t.mkt === 'BIST' ? (cur * t.qty) : (cur * t.qty * state.settings.usdtry);
+    const key = t.sector || 'Belirsiz';
+    if (!groups[key]) groups[key] = { value: 0, count: 0, syms: [] };
+    groups[key].value += valueTL;
+    groups[key].count += 1;
+    groups[key].syms.push(t.sym);
+  });
+
+  const total = Object.values(groups).reduce((a, g) => a + g.value, 0);
+  const sorted = Object.entries(groups).sort((a, b) => b[1].value - a[1].value);
+
+  let html = '';
+  let hasWarning = false;
+  sorted.forEach(([key, g]) => {
+    const pct = (g.value / total) * 100;
+    const warn = pct > 40;
+    if (warn) hasWarning = true;
+    const barColor = pct > 40 ? 'var(--red)' : pct > 25 ? 'var(--gold)' : 'var(--green)';
+    html += `
+      <div style="margin-bottom: 10px;">
+        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">
+          <span style="color:var(--fg);">${key}</span>
+          <span style="color:var(--fg-2); font-variant-numeric: tabular-nums;">${fmt(g.value, 'TL')} · <strong style="color:${barColor};">%${pct.toFixed(1)}</strong></span>
+        </div>
+        <div style="background:var(--bg-3); height:6px; border-radius:3px; overflow:hidden;">
+          <div style="background:${barColor}; height:100%; width:${pct.toFixed(1)}%;"></div>
+        </div>
+        <div style="font-size:10px; color:var(--fg-3); margin-top:3px;">${g.syms.join(', ')} · ${g.count} pozisyon</div>
+      </div>
+    `;
+  });
+
+  if (hasWarning) {
+    html += '<div class="warn" style="margin-top:8px;"><strong>⚠ Konsantrasyon:</strong> Tek sektörde %40+ pozisyonun var. Tek sektör krizinde portföyün yarısı erir. Diversifikasyon önemli.</div>';
+  }
+
+  el.innerHTML = html;
 }
 
 function renderMovers() {
@@ -1228,6 +1377,8 @@ function updateCurrency() {
   const cur = mkt === 'BIST' ? 'TL' : 'USD';
   document.getElementById('f_cur').textContent = cur;
   document.getElementById('f_amt_cur').textContent = cur;
+  document.getElementById('f_stop_cur').textContent = cur;
+  document.getElementById('f_target_cur').textContent = cur;
   onQtyChange();
 }
 
@@ -1276,6 +1427,30 @@ function updateCostPreview() {
   else html += '<tr class="muted"><td colspan="2">BIST bireysel: alım-satım stopajı %0. Sadece komisyon + BSMV.</td></tr>';
   html += '</table></div>';
   document.getElementById('costPreview').innerHTML = html;
+
+  // Pozisyon büyüklüğü uyarısı
+  const positionTL = isUS ? volume * s.usdtry : volume;
+  const closed = state.trades.filter(t => t.closed);
+  const open = state.trades.filter(t => !t.closed);
+  const realized = closed.reduce((a, t) => a + t.result.netTL, 0);
+  const unrealized = open.reduce((a, t) => {
+    const live = quoteCache[t.sym.toUpperCase()] || quoteCache[t.sym.toUpperCase() + '.IS'];
+    return a + calcCost(t, live?.price || t.current).netTL;
+  }, 0);
+  const equity = s.starting_capital + realized + unrealized;
+  const pct = (positionTL / equity) * 100;
+  const warnEl = document.getElementById('sizeWarning');
+  if (warnEl) {
+    if (pct > 20) {
+      warnEl.innerHTML = `<div class="warn"><strong>⚠ Çok büyük pozisyon:</strong> Portföyünün <strong>%${pct.toFixed(1)}</strong>'i. Bu pozisyon büyüklüğü tek bir trade için riskli. Risk yönetim kuralı: %5'in altı güvenli, %10 üstü dikkat, %20 üstü tehlikeli. Pozisyonu küçültmeyi düşün.</div>`;
+    } else if (pct > 10) {
+      warnEl.innerHTML = `<div class="warn"><strong>⚠ Dikkat:</strong> Portföyünün <strong>%${pct.toFixed(1)}</strong>'i. Tek bir trade için epey büyük. Kelly Criterion mantığıyla %5'in altı güvenli.</div>`;
+    } else if (pct > 5) {
+      warnEl.innerHTML = `<div class="info"><strong>Pozisyon büyüklüğü:</strong> Portföyünün <strong>%${pct.toFixed(1)}</strong>'i. Makul üst sınırda — tezin güçlüyse devam, değilse küçült.</div>`;
+    } else {
+      warnEl.innerHTML = `<div style="font-size:11px; color:var(--fg-3); margin-top:8px;">Pozisyon büyüklüğü: %${pct.toFixed(1)} (sermayenin)</div>`;
+    }
+  }
 }
 
 // ============ TRADES ============
@@ -1294,12 +1469,17 @@ function addTrade() {
 
   const meta = window._lastSelectedSymbol && (window._lastSelectedSymbol.symbol.replace('.IS','') === sym) ? window._lastSelectedSymbol : null;
 
+  const stop = parseFloat(document.getElementById('f_stop').value) || null;
+  const target = parseFloat(document.getElementById('f_target').value) || null;
+  const horizon = parseInt(document.getElementById('f_horizon').value) || null;
+
   state.trades.push({
     id: Date.now(),
     mkt, sym, side, entry, qty, thesis,
     name: meta?.name || sym,
     sector: meta?.sectorTR || '',
     industry: meta?.industry || '',
+    stop, target, horizon_days: horizon,
     current: entry,
     opened: new Date().toISOString(),
     closed: null
@@ -1313,8 +1493,12 @@ function addTrade() {
   document.getElementById('f_qty').value = '';
   document.getElementById('f_amt').value = '';
   document.getElementById('f_thesis').value = '';
+  document.getElementById('f_stop').value = '';
+  document.getElementById('f_target').value = '';
+  document.getElementById('f_horizon').value = '';
   document.getElementById('f_sector_info').innerHTML = '';
   document.getElementById('costPreview').innerHTML = '';
+  document.getElementById('sizeWarning').innerHTML = '';
   window._lastSelectedSymbol = null;
   fetchQuotes();
   switchTab('today');
@@ -1352,6 +1536,10 @@ function renderOpen() {
           ${t.qty} × ${fmt(t.entry, c.currency)} → ${fmt(current, c.currency)}
           <br>NET: <span class="pnl ${cls}">${fmt(c.netTL, 'TL')}</span>
         </div>
+        ${(t.stop || t.target) ? `<div style="margin-top:6px; display:flex; gap:10px; font-size:11px;">
+          ${t.stop ? `<span style="color:var(--red);">⊖ Stop ${fmt(t.stop, c.currency)} ${current <= t.stop ? '· GEÇTI' : ''}</span>` : ''}
+          ${t.target ? `<span style="color:var(--green);">⊕ Hedef ${fmt(t.target, c.currency)} ${current >= t.target ? '· GEÇTI' : ''}</span>` : ''}
+        </div>` : ''}
       </div>
     `;
   }).join('');
@@ -2408,6 +2596,10 @@ startQuotePolling();
 reconnectFinnhub();
 setupAutocomplete('f_sym', 'f_sym_drop');
 setupAutocomplete('m_add', 'm_add_drop');
+
+if (!state.settings.onboarded) {
+  setTimeout(showOnboard, 400);
+}
 
 document.getElementById('f_sym').addEventListener('input', () => {
   const typed = document.getElementById('f_sym').value.trim().toUpperCase();
