@@ -2612,26 +2612,70 @@ const UPCOMING_EVENTS_OLD = [
 ];
 
 let earningsCache = [];
+let earningsFetched = false;
+
 async function fetchEarnings() {
+  earningsFetched = true;
   const watchSyms = state.watchlist || [];
   const openSyms = state.trades.filter(t => !t.closed).map(t => t.sym);
   const allSyms = [...new Set([...watchSyms, ...openSyms])];
   if (allSyms.length === 0) return;
-  try {
-    const r = await fetch('/api/earnings?s=' + encodeURIComponent(allSyms.join(',')));
-    const data = await r.json();
-    earningsCache = (data.events || []).map(e => ({
-      date: e.nextEarningsStr,
-      time: '—',
-      country: e.symbol.endsWith('.IS') ? 'TR' : 'US',
-      name: e.symbol.replace('.IS', '') + ' bilanço açıklaması',
-      type: 'earnings',
-      impact: 'medium',
-      note: 'Watchlist veya açık pozisyonunda',
-      isEarnings: true
+
+  const usSyms = allSyms.filter(s => isUSSymbol(s));
+  earningsCache = [];
+
+  // 1. Finnhub for US symbols (if key set)
+  if (state.settings.finnhub_key && usSyms.length > 0) {
+    const key = state.settings.finnhub_key;
+    const from = new Date().toISOString().slice(0, 10);
+    const to = new Date(Date.now() + 180 * 86400000).toISOString().slice(0, 10);
+    const results = await Promise.all(usSyms.map(async sym => {
+      try {
+        const r = await fetch(`https://finnhub.io/api/v1/calendar/earnings?from=${from}&to=${to}&symbol=${encodeURIComponent(sym)}&token=${encodeURIComponent(key)}`);
+        if (!r.ok) return null;
+        const data = await r.json();
+        const next = (data.earningsCalendar || [])[0];
+        if (!next) return null;
+        return { sym, date: next.date, hour: next.hour, eps: next.epsEstimate, rev: next.revenueEstimate, quarter: next.quarter, year: next.year };
+      } catch (e) { return null; }
     }));
-    renderCalendar();
-  } catch (e) { console.warn('earnings fetch:', e); }
+    results.filter(Boolean).forEach(e => {
+      const hourMap = { bmo: 'açılış öncesi', amc: 'kapanış sonrası', dmh: 'gün içi' };
+      const hourLabel = hourMap[e.hour] || '';
+      earningsCache.push({
+        date: e.date,
+        time: hourLabel || '—',
+        country: 'US',
+        name: e.sym + ' bilanço Q' + e.quarter + ' ' + e.year,
+        type: 'earnings',
+        impact: 'medium',
+        note: (e.eps ? 'EPS bekl: $' + e.eps.toFixed(2) : '') + (e.rev ? ' · Gelir bekl: $' + (e.rev/1e9).toFixed(2) + 'B' : '') + (hourLabel ? ' · ' + hourLabel : ''),
+        isEarnings: true
+      });
+    });
+  }
+
+  // 2. Fallback to Vercel proxy for BIST or when no Finnhub key (currently returns empty)
+  if (earningsCache.length === 0) {
+    try {
+      const r = await fetch('/api/earnings?s=' + encodeURIComponent(allSyms.join(',')));
+      const data = await r.json();
+      (data.events || []).forEach(e => {
+        earningsCache.push({
+          date: e.nextEarningsStr,
+          time: '—',
+          country: e.symbol.endsWith('.IS') ? 'TR' : 'US',
+          name: e.symbol.replace('.IS', '') + ' bilanço',
+          type: 'earnings',
+          impact: 'medium',
+          note: '',
+          isEarnings: true
+        });
+      });
+    } catch (e) { /* silent */ }
+  }
+
+  if (document.getElementById('cal')?.classList.contains('active')) renderCalendar();
 }
 
 function renderCalendar() {
@@ -2643,7 +2687,7 @@ function renderCalendar() {
     .filter(e => new Date(e.date) >= today)
     .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
     .slice(0, 60);
-  if (earningsCache.length === 0) fetchEarnings();
+  if (!earningsFetched) fetchEarnings();
 
   const flagFor = c => c === 'TR' ? '🇹🇷' : c === 'US' ? '🇺🇸' : '🌐';
   const impactPill = i => {
