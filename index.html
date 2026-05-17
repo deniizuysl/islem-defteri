@@ -358,6 +358,8 @@
       <div class="stat"><div class="label">Win Rate</div><div class="val" id="s_wr">—</div></div>
       <div class="stat"><div class="label">Brüt P&L</div><div class="val" id="s_gross">—</div><div class="sub" id="s_gross_sub"></div></div>
       <div class="stat"><div class="label">NET P&L</div><div class="val" id="s_net">—</div><div class="sub">komisyon + vergi sonrası</div></div>
+      <div class="stat"><div class="label">Max Drawdown</div><div class="val" id="s_mdd">—</div><div class="sub">en kötü düşüş</div></div>
+      <div class="stat"><div class="label">Şu anki Drawdown</div><div class="val" id="s_cdd">—</div><div class="sub" id="s_cdd_sub">zirveden uzaklık</div></div>
       <div class="stat"><div class="label">Komisyon Top.</div><div class="val" id="s_comm">—</div></div>
       <div class="stat"><div class="label">Vergi Yükü</div><div class="val" id="s_tax">—</div><div class="sub">yurtdışı kâr</div></div>
     </div>
@@ -443,7 +445,23 @@
     <label>Tez</label>
     <textarea id="e_thesis"></textarea>
 
-    <button class="btn" onclick="saveEdit()">Kaydet</button>
+    <div class="grid-2" style="margin-top:8px;">
+      <div>
+        <label>Stop <span id="e_stop_cur" class="pill">TL</span></label>
+        <input id="e_stop" type="number" step="0.01" />
+      </div>
+      <div>
+        <label>Hedef <span id="e_target_cur" class="pill">TL</span></label>
+        <input id="e_target" type="number" step="0.01" />
+      </div>
+    </div>
+
+    <div style="margin: 18px 0 8px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 11px; letter-spacing: 2px; color: var(--gold); text-transform: uppercase;">Notlar (trade boyunca düşünceler)</div>
+    <div id="e_notes_list" style="max-height:200px; overflow-y:auto; margin-bottom:8px;"></div>
+    <textarea id="e_new_note" placeholder="Yeni not (örn. 'Fiyat hedefe yaklaştı, ama bilanço haftası, beklemek lazım')" style="min-height:60px;"></textarea>
+    <button class="btn secondary" style="margin-top:6px; padding:8px 14px; font-size:12px;" onclick="addNote()">Not Ekle</button>
+
+    <button class="btn" onclick="saveEdit()" style="margin-top: 18px;">Kaydet</button>
     <button class="btn secondary" onclick="closeEdit()">İptal</button>
   </div>
 </div>
@@ -869,8 +887,9 @@ function renderToday() {
   `;
 
   const today = now.toISOString().slice(0, 10);
-  const todayEvents = (typeof UPCOMING_EVENTS !== 'undefined') ? UPCOMING_EVENTS.filter(e => e.date === today) : [];
-  const futureEvents = (typeof UPCOMING_EVENTS !== 'undefined') ? UPCOMING_EVENTS.filter(e => e.date > today).slice(0, 3) : [];
+  const allEvents = (typeof getUpcomingEvents === 'function') ? getUpcomingEvents() : [];
+  const todayEvents = allEvents.filter(e => e.date === today);
+  const futureEvents = allEvents.filter(e => e.date > today).slice(0, 3);
 
   const eventsEl = document.getElementById('t_events');
   if (todayEvents.length > 0) {
@@ -1618,13 +1637,62 @@ function openEdit(id) {
   currentEditId = id;
   const t = state.trades.find(x => x.id === id);
   if (!t) return;
-  document.getElementById('e_cur').textContent = t.mkt === 'BIST' ? 'TL' : 'USD';
+  const cur = t.mkt === 'BIST' ? 'TL' : 'USD';
+  document.getElementById('e_cur').textContent = cur;
+  document.getElementById('e_stop_cur').textContent = cur;
+  document.getElementById('e_target_cur').textContent = cur;
   document.getElementById('e_entry').value = t.entry;
   document.getElementById('e_qty').value = t.qty;
   document.getElementById('e_side').value = t.side;
   document.getElementById('e_thesis').value = t.thesis || '';
+  document.getElementById('e_stop').value = t.stop || '';
+  document.getElementById('e_target').value = t.target || '';
+  document.getElementById('e_new_note').value = '';
   document.getElementById('editSummary').innerHTML = `<div class="info"><strong>${t.sym}</strong> · ${t.mkt}${t.sector ? ' · ' + t.sector : ''}<br>Açıldığı tarih: ${new Date(t.opened).toLocaleDateString('tr-TR')}</div>`;
+  renderNotesList(t);
   document.getElementById('editModal').classList.add('active');
+}
+
+function renderNotesList(t) {
+  const el = document.getElementById('e_notes_list');
+  if (!t.notes || t.notes.length === 0) {
+    el.innerHTML = '<div style="color:var(--fg-3); font-size:12px; padding:6px 0;">Henüz not yok.</div>';
+    return;
+  }
+  el.innerHTML = t.notes.slice().reverse().map((n, revIdx) => {
+    const idx = t.notes.length - 1 - revIdx;
+    const d = new Date(n.date);
+    const dStr = d.toLocaleDateString('tr-TR', {day:'numeric', month:'short'}) + ' ' + d.toLocaleTimeString('tr-TR', {hour:'2-digit', minute:'2-digit'});
+    return `<div style="background:var(--bg-3); border-left:2px solid var(--gold-2); padding:8px 10px; margin-bottom:6px; border-radius:0 4px 4px 0;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <span style="font-size:10px; color:var(--gold); letter-spacing:1px; text-transform:uppercase;">${dStr}</span>
+        <button class="icon-btn" style="width:24px; height:24px; font-size:11px; padding:0;" onclick="deleteNote(${idx})">×</button>
+      </div>
+      <div style="font-size:13px; color:var(--fg-2); margin-top:4px; line-height:1.45; white-space:pre-wrap;">${n.text}</div>
+    </div>`;
+  }).join('');
+}
+
+function addNote() {
+  if (!currentEditId) return;
+  const text = document.getElementById('e_new_note').value.trim();
+  if (!text) return;
+  const t = state.trades.find(x => x.id === currentEditId);
+  if (!t) return;
+  if (!t.notes) t.notes = [];
+  t.notes.push({ date: new Date().toISOString(), text });
+  save();
+  document.getElementById('e_new_note').value = '';
+  renderNotesList(t);
+}
+
+function deleteNote(idx) {
+  const t = state.trades.find(x => x.id === currentEditId);
+  if (!t || !t.notes) return;
+  if (!confirm('Bu notu sil?')) return;
+  t.notes.splice(idx, 1);
+  save();
+  renderNotesList(t);
 }
 function closeEdit() {
   document.getElementById('editModal').classList.remove('active');
@@ -1643,6 +1711,8 @@ function saveEdit() {
   t.qty = qty;
   t.side = document.getElementById('e_side').value;
   t.thesis = thesis;
+  t.stop = parseFloat(document.getElementById('e_stop').value) || null;
+  t.target = parseFloat(document.getElementById('e_target').value) || null;
   save();
   closeEdit();
   if (document.getElementById('today')?.classList.contains('active')) renderToday();
@@ -2017,10 +2087,29 @@ function renderStats() {
   const closed = state.trades.filter(t => t.closed);
   document.getElementById('s_total').textContent = closed.length;
   if (closed.length === 0) {
-    ['s_wr','s_gross','s_net','s_comm','s_tax'].forEach(id => document.getElementById(id).textContent = '—');
+    ['s_wr','s_gross','s_net','s_comm','s_tax','s_mdd','s_cdd'].forEach(id => document.getElementById(id).textContent = '—');
     ['q_skill','q_unlucky','q_lucky','q_lesson'].forEach(id => document.getElementById(id).textContent = '0');
     document.getElementById('taxWarn').innerHTML = '';
     return;
+  }
+
+  // Drawdown computation from equity series
+  const sum = computeEquitySeries();
+  if (sum.points.length >= 2) {
+    let peak = sum.points[0].v;
+    let maxDD = 0;
+    sum.points.forEach(p => {
+      if (p.v > peak) peak = p.v;
+      const dd = ((p.v - peak) / peak) * 100;
+      if (dd < maxDD) maxDD = dd;
+    });
+    const last = sum.points[sum.points.length - 1].v;
+    let runningPeak = sum.points[0].v;
+    sum.points.forEach(p => { if (p.v > runningPeak) runningPeak = p.v; });
+    const currentDD = ((last - runningPeak) / runningPeak) * 100;
+    document.getElementById('s_mdd').textContent = maxDD.toFixed(1) + '%';
+    document.getElementById('s_cdd').textContent = currentDD.toFixed(1) + '%';
+    document.getElementById('s_cdd_sub').textContent = currentDD < -1 ? 'zirveden ' + Math.abs(currentDD).toFixed(1) + '% aşağı' : 'zirvede ya da yakın';
   }
   const wins = closed.filter(t => t.result.netTL > 0).length;
   const wr = (wins / closed.length) * 100;
@@ -2425,8 +2514,82 @@ const EVENT_TYPES = [
   }
 ];
 
-// ============ UPCOMING EVENTS — yaklaşan somut tarihler ============
-const UPCOMING_EVENTS = [
+// ============ CALENDAR EVENT GENERATORS ============
+function lastWeekdayOfMonth(year, month, weekday) {
+  const d = new Date(year, month + 1, 0);
+  while (d.getDay() !== weekday) d.setDate(d.getDate() - 1);
+  return d;
+}
+function firstWeekdayOfMonth(year, month, weekday) {
+  const d = new Date(year, month, 1);
+  while (d.getDay() !== weekday) d.setDate(d.getDate() + 1);
+  return d;
+}
+function nthBusinessDayOfMonth(year, month, n) {
+  const d = new Date(year, month, 1);
+  let count = 0;
+  while (count < n) {
+    if (d.getDay() !== 0 && d.getDay() !== 6) count++;
+    if (count < n) d.setDate(d.getDate() + 1);
+  }
+  return d;
+}
+function isoDate(d) { return d.toISOString().slice(0, 10); }
+
+function generateUpcomingEvents() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const events = [];
+
+  const FOMC_DATES = ['2026-05-06','2026-06-17','2026-07-29','2026-09-16','2026-10-28','2026-12-09','2027-01-27','2027-03-17','2027-04-28','2027-06-16'];
+  FOMC_DATES.forEach(d => {
+    events.push({ date: d, time: '21:00', country: 'US', name: 'Fed FOMC Faiz Kararı', type: 'fed_fomc', impact: 'high', note: 'Powell basın toplantısı 21:30.' });
+  });
+
+  for (let i = 0; i < 6; i++) {
+    const dt = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    const y = dt.getFullYear(), m = dt.getMonth();
+
+    const tcmb = lastWeekdayOfMonth(y, m, 4);
+    events.push({ date: isoDate(tcmb), time: '14:00', country: 'TR', name: 'TCMB Faiz Kararı', type: 'tcmb_faiz', impact: 'high', note: '' });
+    events.push({ date: isoDate(tcmb), time: '15:30', country: 'TR', name: 'TCMB PPK Toplantı Özeti', type: 'tcmb_faiz', impact: 'medium', note: '' });
+
+    const tufe = nthBusinessDayOfMonth(y, m, 3);
+    events.push({ date: isoDate(tufe), time: '10:00', country: 'TR', name: 'TÜFE & ÜFE (' + ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'][(m-1+12)%12] + ')', type: 'tufe', impact: 'high', note: '' });
+
+    const nfp = firstWeekdayOfMonth(y, m, 5);
+    events.push({ date: isoDate(nfp), time: '15:30', country: 'US', name: 'Non-Farm Payrolls', type: 'nfp', impact: 'high', note: 'İlk Cuma — istihdam.' });
+
+    const cpi = new Date(y, m, 12);
+    while (cpi.getDay() === 0 || cpi.getDay() === 6) cpi.setDate(cpi.getDate() + 1);
+    events.push({ date: isoDate(cpi), time: '15:30', country: 'US', name: 'ABD CPI', type: 'cpi', impact: 'high', note: '' });
+
+    const pce = lastWeekdayOfMonth(y, m, 5);
+    events.push({ date: isoDate(pce), time: '15:30', country: 'US', name: 'Core PCE', type: 'pce', impact: 'high', note: 'Fed enflasyon tercihi.' });
+
+    const ism = nthBusinessDayOfMonth(y, m, 1);
+    events.push({ date: isoDate(ism), time: '17:00', country: 'US', name: 'ISM Manufacturing', type: 'ism', impact: 'medium', note: '' });
+
+    const cari = new Date(y, m, 11);
+    while (cari.getDay() === 0 || cari.getDay() === 6) cari.setDate(cari.getDate() + 1);
+    events.push({ date: isoDate(cari), time: '10:00', country: 'TR', name: 'Cari İşlemler Dengesi', type: 'cari', impact: 'medium', note: '' });
+  }
+
+  const todayStr = isoDate(today);
+  return events
+    .filter(e => e.date >= todayStr)
+    .filter((e, i, arr) => arr.findIndex(x => x.date === e.date && x.name === e.name) === i)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
+}
+
+let UPCOMING_EVENTS_CACHE = null;
+function getUpcomingEvents() {
+  if (!UPCOMING_EVENTS_CACHE) UPCOMING_EVENTS_CACHE = generateUpcomingEvents();
+  return UPCOMING_EVENTS_CACHE;
+}
+
+// Keep legacy name for backward compat (used by morning brief duplicate, etc.)
+const UPCOMING_EVENTS_OLD = [
   { date: '2026-05-22', time: '14:00', country: 'TR', name: 'TCMB Faiz Kararı', type: 'tcmb_faiz', impact: 'high', note: 'Mayıs toplantısı — TÜFE trend yorumu kritik.' },
   { date: '2026-05-22', time: '15:30', country: 'TR', name: 'TCMB Para Politikası Kurulu Toplantı Özeti', type: 'tcmb_faiz', impact: 'medium', note: 'Kararla aynı gün gerekçe açıklaması.' },
   { date: '2026-05-28', time: '15:30', country: 'US', name: 'Q1 GDP (İkinci Tahmin)', type: 'gdp_us', impact: 'medium', note: 'Revizyon — büyük sürpriz beklenmez.' },
@@ -2448,12 +2611,39 @@ const UPCOMING_EVENTS = [
   { date: '2026-07-03', time: '15:30', country: 'US', name: 'Non-Farm Payrolls (Haziran)', type: 'nfp', impact: 'high', note: 'Bağımsızlık Günü öncesi — piyasa erken kapanır.' }
 ];
 
+let earningsCache = [];
+async function fetchEarnings() {
+  const watchSyms = state.watchlist || [];
+  const openSyms = state.trades.filter(t => !t.closed).map(t => t.sym);
+  const allSyms = [...new Set([...watchSyms, ...openSyms])];
+  if (allSyms.length === 0) return;
+  try {
+    const r = await fetch('/api/earnings?s=' + encodeURIComponent(allSyms.join(',')));
+    const data = await r.json();
+    earningsCache = (data.events || []).map(e => ({
+      date: e.nextEarningsStr,
+      time: '—',
+      country: e.symbol.endsWith('.IS') ? 'TR' : 'US',
+      name: e.symbol.replace('.IS', '') + ' bilanço açıklaması',
+      type: 'earnings',
+      impact: 'medium',
+      note: 'Watchlist veya açık pozisyonunda',
+      isEarnings: true
+    }));
+    renderCalendar();
+  } catch (e) { console.warn('earnings fetch:', e); }
+}
+
 function renderCalendar() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const upcoming = UPCOMING_EVENTS
+  const baseEvents = getUpcomingEvents()
+    .filter(e => new Date(e.date) >= today);
+  const upcoming = [...baseEvents, ...earningsCache]
     .filter(e => new Date(e.date) >= today)
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+    .slice(0, 60);
+  if (earningsCache.length === 0) fetchEarnings();
 
   const flagFor = c => c === 'TR' ? '🇹🇷' : c === 'US' ? '🇺🇸' : '🌐';
   const impactPill = i => {
@@ -2475,10 +2665,10 @@ function renderCalendar() {
       const dayLabel = dayDiff === 0 ? 'BUGÜN' : dayDiff === 1 ? 'YARIN' : '+' + dayDiff + ' gün';
       return `
         ${showHeader ? `<div style="font-size:11px; letter-spacing:2px; color:var(--gold); text-transform:uppercase; margin: 16px 0 6px;">${dStr} <span style="color:var(--fg-3); margin-left:8px;">${dayLabel}</span></div>` : ''}
-        <div class="card" onclick="showEventDetail('${e.type}', '${e.date}')" style="cursor:pointer; border-left: 3px solid ${e.impact === 'high' ? 'var(--gold)' : 'var(--line)'};">
+        <div class="card" onclick="${e.isEarnings ? '' : `showEventDetail('${e.type}', '${e.date}')`}" style="cursor:${e.isEarnings ? 'default' : 'pointer'}; border-left: 3px solid ${e.isEarnings ? 'var(--green)' : (e.impact === 'high' ? 'var(--gold)' : 'var(--line)')};">
           <div class="row">
             <div>
-              <span style="font-size:14px;">${flagFor(e.country)}</span>
+              <span style="font-size:14px;">${e.isEarnings ? '📊' : flagFor(e.country)}</span>
               <span class="sym" style="font-size:14px; margin-left:6px;">${e.name}</span>
             </div>
             <span style="color:var(--fg-3); font-size:12px;">${e.time}</span>
