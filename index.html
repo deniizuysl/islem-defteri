@@ -224,6 +224,10 @@
 
     <div class="portfolio-card" id="t_portfolio"></div>
 
+    <button class="btn secondary" style="margin: -10px 0 18px; padding: 10px 14px; font-size: 12px;" onclick="copySummary()">
+      📋 Özeti panoya kopyala (mentora gönder)
+    </button>
+
     <div class="today-section" id="t_events_wrap">
       <div class="section-eyebrow">Takvim</div>
       <div id="t_events"></div>
@@ -616,6 +620,117 @@ function switchTab(t) {
   if (t === 'cal') renderCalendar();
   if (t === 'edu') renderEdu();
   if (t === 'log') renderClosed();
+}
+
+// ============ MENTOR ÖZETİ ============
+function buildSummary() {
+  const now = new Date();
+  const dStr = now.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+  const tStr = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+  const closed = state.trades.filter(t => t.closed);
+  const open = state.trades.filter(t => !t.closed);
+  const cap = state.settings.starting_capital;
+  const realized = closed.reduce((a, t) => a + t.result.netTL, 0);
+  const unrealized = open.reduce((a, t) => {
+    const live = quoteCache[t.sym.toUpperCase()] || quoteCache[t.sym.toUpperCase() + '.IS'];
+    return a + calcCost(t, live?.price || t.current).netTL;
+  }, 0);
+  const equity = cap + realized + unrealized;
+  const totalRet = ((equity - cap) / cap) * 100;
+
+  let s = `📓 İŞLEM DEFTERİ — ${dStr} ${tStr}\n\n`;
+  s += `PORTFÖY\n`;
+  s += `Değer: ₺${equity.toLocaleString('tr-TR',{maximumFractionDigits:2})} (${totalRet >= 0 ? '+' : ''}${totalRet.toFixed(2)}% başlangıçtan)\n`;
+  s += `Başlangıç ₺${cap.toLocaleString('tr-TR')} · Açık: ${open.length} · Kapalı: ${closed.length}\n`;
+  s += `USD/TRY: ${state.settings.usdtry}\n\n`;
+
+  if (open.length > 0) {
+    s += `AÇIK POZİSYONLAR (${open.length})\n`;
+    open.forEach(t => {
+      const live = quoteCache[t.sym.toUpperCase()] || quoteCache[t.sym.toUpperCase() + '.IS'];
+      const cur = live?.price || t.current;
+      const c = calcCost(t, cur);
+      const pct = ((cur - t.entry) / t.entry) * 100 * (t.side === 'long' ? 1 : -1);
+      const curSym = c.currency === 'USD' ? '$' : '₺';
+      const opened = new Date(t.opened).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+      s += `\n• ${t.sym} · ${t.mkt} · ${t.side === 'long' ? 'LONG' : 'SHORT'}\n`;
+      s += `  ${t.qty} × ${curSym}${t.entry.toFixed(2)} → ${curSym}${cur.toFixed(2)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)\n`;
+      s += `  NET: ${c.netTL >= 0 ? '+' : ''}₺${c.netTL.toFixed(2)}\n`;
+      if (t.sector) s += `  Sektör: ${t.sector}${t.industry ? ' · ' + t.industry : ''}\n`;
+      s += `  Açıldı: ${opened}\n`;
+      s += `  Tez: "${t.thesis}"\n`;
+    });
+    s += `\n`;
+  }
+
+  if (closed.length > 0) {
+    const recent = [...closed].sort((a,b) => new Date(b.closed) - new Date(a.closed)).slice(0, 5);
+    s += `SON KAPANMIŞ (${Math.min(5, closed.length)} / ${closed.length})\n`;
+    recent.forEach(t => {
+      const dt = new Date(t.closed).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+      const tezMark = t.thesis_eval === 'dogru' ? '✓ tez' : t.thesis_eval === 'yanlis' ? '✗ tez' : '? tez';
+      const reasonMap = { hedef:'hedef', stop:'stop', tez_degisti:'tez değişti', duygusal:'duygusal', firsat:'fırsat', zaman:'zaman' };
+      s += `\n• ${t.sym} · ${dt} · NET ${t.result.netTL >= 0 ? '+' : ''}₺${t.result.netTL.toFixed(2)}\n`;
+      s += `  ${tezMark} · sebep: ${reasonMap[t.reason] || t.reason}\n`;
+      s += `  Ders: "${t.lesson}"\n`;
+    });
+    s += `\n`;
+
+    const wins = closed.filter(t => t.result.netTL > 0).length;
+    const wr = (wins / closed.length) * 100;
+    const grossTotal = closed.reduce((a,t) => a + t.result.grossTL, 0);
+    const netTotal = closed.reduce((a,t) => a + t.result.netTL, 0);
+    const commTotal = closed.reduce((a,t) => a + t.result.commTL + t.result.bsmvTL + t.result.fxTL, 0);
+    const taxTotal = closed.reduce((a,t) => a + t.result.taxTL, 0);
+    s += `İSTATİSTİK\n`;
+    s += `Win rate: ${wr.toFixed(0)}% (${wins}/${closed.length})\n`;
+    s += `Brüt: ${grossTotal >= 0 ? '+' : ''}₺${grossTotal.toFixed(0)} · NET: ${netTotal >= 0 ? '+' : ''}₺${netTotal.toFixed(0)}\n`;
+    s += `Komisyon+: ₺${commTotal.toFixed(0)} · Vergi: ₺${taxTotal.toFixed(0)}\n`;
+  }
+
+  if (state.watchlist.length > 0) {
+    s += `\nWATCHLIST: ${state.watchlist.join(', ')}\n`;
+  }
+
+  return s;
+}
+
+async function copySummary() {
+  const text = buildSummary();
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('✓ Özet panoya kopyalandı — sohbete yapıştır');
+  } catch (e) {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      showToast('✓ Özet panoya kopyalandı');
+    } catch (err) {
+      alert('Kopyalanamadı, manuel kopyala:\n\n' + text);
+    }
+    document.body.removeChild(ta);
+  }
+}
+
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--bg-2); color:var(--gold); border:1px solid var(--gold-2); padding:12px 18px; border-radius:4px; font-size:13px; z-index:200; opacity:0; transition:opacity 0.25s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  requestAnimationFrame(() => { t.style.opacity = '1'; });
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => { t.style.opacity = '0'; }, 2200);
 }
 
 // ============ TODAY (Home) ============
