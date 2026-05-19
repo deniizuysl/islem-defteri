@@ -170,6 +170,37 @@
   .portfolio-card .pc-sub span.divider { color: var(--fg-3); }
   .portfolio-card .pc-change { font-size: 13px; margin-top: 4px; }
 
+  .vc-split { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .vc-divider { background: var(--line); }
+  .vc-col-label { font-size: 10px; letter-spacing: 2px; color: var(--fg-3); text-transform: uppercase; }
+  .vc-col-value { font-size: 20px; color: var(--fg); margin-top: 4px; font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1; letter-spacing: -0.01em; }
+  .vc-col.invested .vc-col-value { color: var(--fg); }
+  .vc-col.cash .vc-col-value { color: var(--fg-2); }
+  .vc-col-meta { font-size: 11px; color: var(--fg-3); margin-top: 3px; letter-spacing: 0.5px; }
+  .vc-bar { display: flex; height: 6px; background: var(--bg-3); border-radius: 3px; overflow: hidden; margin-top: 14px; border: 1px solid var(--line); }
+  .vc-bar-invested { background: var(--gold); height: 100%; }
+  .vc-bar-cash { background: var(--petrol); height: 100%; opacity: 0.7; }
+
+  .holding-card { background: var(--bg-2); border: 1px solid var(--line); border-radius: 4px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: transform 0.12s ease, border-color 0.15s ease; }
+  .holding-card:active { transform: scale(0.985); border-color: var(--gold-2); }
+  .holding-card .hc-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .holding-card .hc-sym { font-size: 16px; color: var(--fg); letter-spacing: 1px; }
+  .holding-card .hc-mkt { color: var(--fg-3); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-left: 6px; }
+  .holding-card .hc-name { color: var(--fg-3); font-size: 11px; margin-top: 4px; }
+  .holding-card .hc-prices { color: var(--fg-2); font-size: 12px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  .holding-card .hc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; padding: 10px 0; border-top: 1px dotted var(--line); border-bottom: 1px dotted var(--line); }
+  .holding-card .hc-k { font-size: 9px; letter-spacing: 2px; color: var(--fg-3); text-transform: uppercase; }
+  .holding-card .hc-v { font-size: 13px; color: var(--fg); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .holding-card .hc-pnl { margin-top: 10px; font-size: 12px; color: var(--fg-3); letter-spacing: 1px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: baseline; }
+  .holding-card .hc-pnl .hc-pnl-val { font-size: 14px; font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
+  .holding-card .hc-weight-bar { background: var(--bg-3); height: 3px; border-radius: 2px; overflow: hidden; margin-top: 8px; }
+  .holding-card .hc-weight-bar > div { background: var(--gold-2); height: 100%; }
+  .holding-card .hc-targets { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 11px; }
+  .holding-card .hc-targets .hc-target-pos { color: var(--green); }
+  .holding-card .hc-targets .hc-target-neg { color: var(--red); }
+  .holding-card .hc-targets .hc-hit { background: var(--bg-3); padding: 1px 6px; border-radius: 2px; margin-left: 4px; font-size: 10px; letter-spacing: 1px; }
+  .holding-card .hc-actions { display: flex; align-items: center; gap: 6px; }
+
   .today-section { margin-bottom: 24px; }
   .section-eyebrow { font-size: 10px; letter-spacing: 3px; color: var(--gold); text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
 
@@ -202,6 +233,7 @@
 
 <nav class="tabs">
   <button data-tab="today" class="active" onclick="switchTab('today')">Bugün</button>
+  <button data-tab="hazine" onclick="switchTab('hazine')">Hazine</button>
   <button data-tab="market" onclick="switchTab('market')">Piyasa</button>
   <button data-tab="new" onclick="switchTab('new')">Yeni</button>
   <button data-tab="cal" onclick="switchTab('cal')">Takvim</button>
@@ -222,7 +254,7 @@
       <div class="year" id="t_year"></div>
     </div>
 
-    <div class="portfolio-card" id="t_portfolio"></div>
+    <div class="portfolio-card" id="t_cash"></div>
 
     <button class="btn secondary" style="margin: -10px 0 18px; padding: 10px 14px; font-size: 12px;" onclick="copySummary()">
       📋 Özeti panoya kopyala (mentora gönder)
@@ -240,19 +272,27 @@
       </div>
     </div>
 
+    <div class="today-section">
+      <div class="section-eyebrow">Bugünün kavramı</div>
+      <div id="t_concept"></div>
+    </div>
+  </section>
+
+  <section id="hazine">
+    <h2 style="display:flex; align-items:center; justify-content:space-between;">
+      <span>Hazine</span>
+      <span style="font-size:11px; color:var(--fg-3); font-family:Georgia;">portföy + pozisyonlar</span>
+    </h2>
+    <div class="portfolio-card" id="t_portfolio"></div>
+
     <div class="today-section" id="t_positions_wrap">
-      <div class="section-eyebrow"><span>Açık Pozisyonlar</span><span id="t_pos_count" style="color:var(--fg-3); font-weight:normal;"></span></div>
+      <div class="section-eyebrow"><span>Şirketlerim</span><span id="t_pos_count" style="color:var(--fg-3); font-weight:normal;"></span></div>
       <div id="openList"></div>
     </div>
 
     <div class="today-section" id="t_sector_wrap" style="display:none;">
       <div class="section-eyebrow">Sektör Dağılımı</div>
       <div id="t_sectors"></div>
-    </div>
-
-    <div class="today-section">
-      <div class="section-eyebrow">Bugünün kavramı</div>
-      <div id="t_concept"></div>
     </div>
   </section>
 
@@ -667,6 +707,7 @@ function switchTab(t) {
   document.getElementById(t).classList.add('active');
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
   if (t === 'today') { renderToday(); fetchQuotes(); }
+  if (t === 'hazine') { renderHazine(); fetchQuotes(); }
   if (t === 'market') { renderWatchlist(); fetchQuotes(); }
   if (t === 'stat') renderStats();
   if (t === 'cal') renderCalendar();
@@ -861,30 +902,7 @@ function renderToday() {
   document.getElementById('t_month').textContent = months[now.getMonth()];
   document.getElementById('t_year').textContent = now.getFullYear() + ' · ' + dayOfYear + '. gün';
 
-  const closed = state.trades.filter(t => t.closed);
-  const open = state.trades.filter(t => !t.closed);
-  const cap = state.settings.starting_capital;
-  const realized = closed.reduce((a, t) => a + t.result.netTL, 0);
-  const unrealized = open.reduce((a, t) => {
-    const c = calcCost(t, t.current);
-    return a + c.netTL;
-  }, 0);
-  const equity = cap + realized + unrealized;
-  const totalRet = ((equity - cap) / cap) * 100;
-  const retCls = totalRet >= 0 ? 'pos' : 'neg';
-
-  document.getElementById('t_portfolio').innerHTML = `
-    <div class="pc-label">Portföy Değeri</div>
-    <div class="pc-value">${fmt(equity, 'TL')}</div>
-    <div class="pc-change pnl ${retCls}">${totalRet >= 0 ? '+' : ''}${totalRet.toFixed(2)}% başlangıçtan</div>
-    <div class="pc-sub">
-      <span>${open.length} açık</span>
-      <span class="divider">·</span>
-      <span>${closed.length} kapalı</span>
-      <span class="divider">·</span>
-      <span>Başlangıç ${fmt(cap, 'TL')}</span>
-    </div>
-  `;
+  renderTodayCash();
 
   const today = now.toISOString().slice(0, 10);
   const allEvents = (typeof getUpcomingEvents === 'function') ? getUpcomingEvents() : [];
@@ -915,10 +933,6 @@ function renderToday() {
   }
 
   renderMovers();
-
-  document.getElementById('t_pos_count').textContent = open.length === 0 ? 'yok' : open.length + ' adet';
-  renderOpen();
-  renderSectors();
 
   const dayIdx = Math.floor(Date.now() / 86400000) % CONCEPTS.length;
   const c = CONCEPTS[dayIdx];
@@ -1191,27 +1205,12 @@ async function fetchQuotes() {
     renderWatchlist();
     if (document.getElementById('today')?.classList.contains('active')) {
       renderMovers();
+      renderTodayCash();
+    }
+    if (document.getElementById('hazine')?.classList.contains('active')) {
       renderOpen();
-      const openTrades = state.trades.filter(t => !t.closed);
-      const cap = state.settings.starting_capital;
-      const realized = state.trades.filter(t => t.closed).reduce((a, t) => a + t.result.netTL, 0);
-      const unrealized = openTrades.reduce((a, t) => {
-        const live = quoteCache[t.sym.toUpperCase()] || quoteCache[t.sym.toUpperCase() + '.IS'];
-        return a + calcCost(t, live?.price || t.current).netTL;
-      }, 0);
-      const equity = cap + realized + unrealized;
-      const totalRet = ((equity - cap) / cap) * 100;
-      const retCls = totalRet >= 0 ? 'pos' : 'neg';
-      const card = document.getElementById('t_portfolio');
-      if (card) {
-        const valEl = card.querySelector('.pc-value');
-        const chgEl = card.querySelector('.pc-change');
-        if (valEl) valEl.textContent = fmt(equity, 'TL');
-        if (chgEl) {
-          chgEl.className = 'pc-change pnl ' + retCls;
-          chgEl.textContent = (totalRet >= 0 ? '+' : '') + totalRet.toFixed(2) + '% başlangıçtan';
-        }
-      }
+      renderPortfolio();
+      renderSectors();
     }
     requestAnimationFrame(() => {
       Object.entries(changes).forEach(([sym, dir]) => {
@@ -1523,6 +1522,113 @@ function addTrade() {
   switchTab('today');
 }
 
+function getPositionSnapshot(t) {
+  const live = quoteCache[t.sym.toUpperCase()] || quoteCache[t.sym.toUpperCase() + '.IS'];
+  const current = live?.price || t.current;
+  const isLive = live?.source === 'finnhub';
+  const fx = state.settings.usdtry;
+  const isUS = t.mkt !== 'BIST';
+  const costLocal = t.entry * t.qty;
+  const valueLocal = current * t.qty;
+  const costTL = isUS ? costLocal * fx : costLocal;
+  const valueTL = isUS ? valueLocal * fx : valueLocal;
+  return { live, current, isLive, costLocal, valueLocal, costTL, valueTL };
+}
+
+function computePortfolio() {
+  const closed = state.trades.filter(t => t.closed);
+  const open = state.trades.filter(t => !t.closed);
+  const cap = state.settings.starting_capital;
+  const realized = closed.reduce((a, t) => a + t.result.netTL, 0);
+  let openCostTL = 0;
+  let unrealized = 0;
+  open.forEach(t => {
+    const s = getPositionSnapshot(t);
+    openCostTL += s.costTL;
+    unrealized += calcCost(t, s.current).netTL;
+  });
+  const equity = cap + realized + unrealized;
+  const cash = cap + realized - openCostTL;
+  const invested = equity - cash;
+  const totalRet = ((equity - cap) / cap) * 100;
+  return { open, closed, cap, realized, openCostTL, unrealized, equity, cash, invested, totalRet };
+}
+
+function renderTodayCash() {
+  const el = document.getElementById('t_cash');
+  if (!el) return;
+  const p = computePortfolio();
+  const retCls = p.totalRet >= 0 ? 'pos' : 'neg';
+  el.innerHTML = `
+    <div class="pc-label">Boşta Nakit</div>
+    <div class="pc-value">${fmt(p.cash, 'TL')}</div>
+    <div class="pc-change pnl ${retCls}">${p.totalRet >= 0 ? '+' : ''}${p.totalRet.toFixed(2)}% başlangıçtan · toplam ${fmt(p.equity, 'TL')}</div>
+    <div class="pc-sub">
+      <span>${p.open.length} açık pozisyon</span>
+      <span class="divider">·</span>
+      <span>Kâğıtta ${fmt(p.invested, 'TL')}</span>
+      <span class="divider">·</span>
+      <span><a onclick="switchTab('hazine')" style="color:var(--gold); cursor:pointer; text-decoration:underline;">Hazine →</a></span>
+    </div>
+  `;
+}
+
+function renderHazine() {
+  renderPortfolio();
+  const open = state.trades.filter(t => !t.closed);
+  const posCount = document.getElementById('t_pos_count');
+  if (posCount) posCount.textContent = open.length === 0 ? 'yok' : open.length + ' adet';
+  renderOpen();
+  renderSectors();
+}
+
+function renderPortfolio() {
+  const el = document.getElementById('t_portfolio');
+  if (!el) return;
+  const closed = state.trades.filter(t => t.closed);
+  const open = state.trades.filter(t => !t.closed);
+  const cap = state.settings.starting_capital;
+  const realized = closed.reduce((a, t) => a + t.result.netTL, 0);
+  let openCostTL = 0;
+  let unrealized = 0;
+  open.forEach(t => {
+    const s = getPositionSnapshot(t);
+    openCostTL += s.costTL;
+    unrealized += calcCost(t, s.current).netTL;
+  });
+  const equity = cap + realized + unrealized;
+  const cash = cap + realized - openCostTL;
+  const invested = equity - cash;
+  const totalRet = ((equity - cap) / cap) * 100;
+  const retCls = totalRet >= 0 ? 'pos' : 'neg';
+  const denom = invested + Math.max(cash, 0);
+  const invPct = denom > 0 ? (invested / denom) * 100 : 0;
+  const cashPct = denom > 0 ? Math.max(cash, 0) / denom * 100 : 0;
+
+  el.innerHTML = `
+    <div class="pc-label">Portföy Değeri</div>
+    <div class="pc-value">${fmt(equity, 'TL')}</div>
+    <div class="pc-change pnl ${retCls}">${totalRet >= 0 ? '+' : ''}${totalRet.toFixed(2)}% başlangıçtan</div>
+    <div class="vc-split">
+      <div class="vc-col invested">
+        <div class="vc-col-label">Kâğıtta</div>
+        <div class="vc-col-value">${fmt(invested, 'TL')}</div>
+        <div class="vc-col-meta">%${invPct.toFixed(1)} · ${open.length} pozisyon</div>
+      </div>
+      <div class="vc-divider"></div>
+      <div class="vc-col cash">
+        <div class="vc-col-label">Boşta</div>
+        <div class="vc-col-value">${fmt(cash, 'TL')}</div>
+        <div class="vc-col-meta">%${cashPct.toFixed(1)} nakit</div>
+      </div>
+    </div>
+    <div class="vc-bar" title="Kâğıtta %${invPct.toFixed(1)} · Boşta %${cashPct.toFixed(1)}">
+      <div class="vc-bar-invested" style="width:${invPct.toFixed(2)}%"></div>
+      <div class="vc-bar-cash" style="width:${cashPct.toFixed(2)}%"></div>
+    </div>
+  `;
+}
+
 function renderOpen() {
   const open = state.trades.filter(t => !t.closed);
   const el = document.getElementById('openList');
@@ -1530,34 +1636,55 @@ function renderOpen() {
     el.innerHTML = '<div style="color:var(--fg-3); font-size:13px; padding:14px 0; text-align:center;">Henüz açık pozisyon yok. <a onclick="switchTab(\'new\')" style="color:var(--gold); cursor:pointer; text-decoration:underline;">Yeni işlem aç</a></div>';
     return;
   }
-  el.innerHTML = open.map(t => {
-    const live = quoteCache[t.sym.toUpperCase()] || quoteCache[t.sym.toUpperCase() + '.IS'];
-    const current = live?.price || t.current;
-    const isLive = live?.source === 'finnhub';
-    const c = calcCost(t, current);
-    const pct = ((current - t.entry) / t.entry) * 100 * (t.side === 'long' ? 1 : -1);
+  const snapshots = open.map(t => ({ t, s: getPositionSnapshot(t) }));
+  const totalValueTL = snapshots.reduce((a, x) => a + x.s.valueTL, 0);
+
+  el.innerHTML = snapshots.map(({ t, s }) => {
+    const c = calcCost(t, s.current);
+    const pct = ((s.current - t.entry) / t.entry) * 100 * (t.side === 'long' ? 1 : -1);
     const cls = c.netTL >= 0 ? 'pos' : 'neg';
+    const weight = totalValueTL > 0 ? (s.valueTL / totalValueTL) * 100 : 0;
+    const stopDistPct = t.stop ? ((s.current - t.stop) / s.current) * 100 : null;
+    const targetDistPct = t.target ? ((t.target - s.current) / s.current) * 100 : null;
+    const stopHit = t.stop && (t.side === 'long' ? s.current <= t.stop : s.current >= t.stop);
+    const targetHit = t.target && (t.side === 'long' ? s.current >= t.target : s.current <= t.target);
     return `
-      <div class="card" data-sym="${t.sym.toUpperCase()}" onclick="openClose(${t.id})" style="cursor:pointer;">
-        <div class="row">
+      <div class="holding-card" data-sym="${t.sym.toUpperCase()}" onclick="openClose(${t.id})">
+        <div class="hc-top">
           <div>
-            <span class="sym">${t.sym}</span>
-            <span class="mkt">${t.mkt} · ${t.side}${isLive ? ' · LIVE' : ''}</span>
+            <span class="hc-sym">${t.sym}</span>
+            <span class="hc-mkt">${t.mkt} · ${t.side}${s.isLive ? ' · LIVE' : ''}</span>
+            ${(t.name || t.sector) ? `<div class="hc-name">${[t.name, t.sector].filter(Boolean).join(' · ')}</div>` : ''}
           </div>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <div class="pnl ${cls}" style="margin-right:4px;">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
+          <div class="hc-actions">
+            <div class="pnl ${cls}" style="font-size:14px;">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
             <button class="icon-btn" style="width:28px; height:28px; font-size:13px; padding:0;" onclick="event.stopPropagation(); openChart('${t.sym}', '${t.mkt}')" title="Grafik">📊</button>
             <button class="icon-btn" style="width:28px; height:28px; font-size:12px; padding:0;" onclick="event.stopPropagation(); openEdit(${t.id})" title="Düzenle">✎</button>
           </div>
         </div>
-        ${t.sector ? `<div style="font-size:11px; color:var(--fg-3); margin-top:4px;">${t.name || ''} · ${t.sector}</div>` : ''}
-        <div class="meta">
-          ${t.qty} × ${fmt(t.entry, c.currency)} → ${fmt(current, c.currency)}
-          <br>NET: <span class="pnl ${cls}">${fmt(c.netTL, 'TL')}</span>
+        <div class="hc-prices">${t.qty} × ${fmt(t.entry, c.currency)} → <strong style="color:var(--fg);">${fmt(s.current, c.currency)}</strong></div>
+        <div class="hc-grid">
+          <div>
+            <div class="hc-k">Maliyet</div>
+            <div class="hc-v">${fmt(s.costTL, 'TL')}</div>
+          </div>
+          <div>
+            <div class="hc-k">Değer</div>
+            <div class="hc-v">${fmt(s.valueTL, 'TL')}</div>
+          </div>
+          <div>
+            <div class="hc-k">Ağırlık</div>
+            <div class="hc-v">%${weight.toFixed(1)}</div>
+          </div>
         </div>
-        ${(t.stop || t.target) ? `<div style="margin-top:6px; display:flex; gap:10px; font-size:11px;">
-          ${t.stop ? `<span style="color:var(--red);">⊖ Stop ${fmt(t.stop, c.currency)} ${current <= t.stop ? '· GEÇTI' : ''}</span>` : ''}
-          ${t.target ? `<span style="color:var(--green);">⊕ Hedef ${fmt(t.target, c.currency)} ${current >= t.target ? '· GEÇTI' : ''}</span>` : ''}
+        <div class="hc-weight-bar"><div style="width:${weight.toFixed(2)}%"></div></div>
+        <div class="hc-pnl">
+          <span>NET P&amp;L</span>
+          <span class="hc-pnl-val pnl ${cls}">${fmt(c.netTL, 'TL')}</span>
+        </div>
+        ${(t.stop || t.target) ? `<div class="hc-targets">
+          ${t.target ? `<span class="hc-target-pos">⊕ Hedef ${fmt(t.target, c.currency)}${targetDistPct !== null ? ` · %${Math.abs(targetDistPct).toFixed(1)} ${targetDistPct >= 0 ? 'uzak' : 'aşıldı'}` : ''}${targetHit ? '<span class="hc-hit">GEÇTI</span>' : ''}</span>` : ''}
+          ${t.stop ? `<span class="hc-target-neg">⊖ Stop ${fmt(t.stop, c.currency)}${stopDistPct !== null ? ` · %${Math.abs(stopDistPct).toFixed(1)} ${stopDistPct >= 0 ? 'uzak' : 'aşıldı'}` : ''}${stopHit ? '<span class="hc-hit">GEÇTI</span>' : ''}</span>` : ''}
         </div>` : ''}
       </div>
     `;
