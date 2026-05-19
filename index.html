@@ -1606,26 +1606,9 @@ function renderPortfolio() {
   const cashPct = denom > 0 ? Math.max(cash, 0) / denom * 100 : 0;
 
   el.innerHTML = `
-    <div class="pc-label">Portföy Değeri</div>
-    <div class="pc-value">${fmt(equity, 'TL')}</div>
-    <div class="pc-change pnl ${retCls}">${totalRet >= 0 ? '+' : ''}${totalRet.toFixed(2)}% başlangıçtan</div>
-    <div class="vc-split">
-      <div class="vc-col invested">
-        <div class="vc-col-label">Kâğıtta</div>
-        <div class="vc-col-value">${fmt(invested, 'TL')}</div>
-        <div class="vc-col-meta">%${invPct.toFixed(1)} · ${open.length} pozisyon</div>
-      </div>
-      <div class="vc-divider"></div>
-      <div class="vc-col cash">
-        <div class="vc-col-label">Boşta</div>
-        <div class="vc-col-value">${fmt(cash, 'TL')}</div>
-        <div class="vc-col-meta">%${cashPct.toFixed(1)} nakit</div>
-      </div>
-    </div>
-    <div class="vc-bar" title="Kâğıtta %${invPct.toFixed(1)} · Boşta %${cashPct.toFixed(1)}">
-      <div class="vc-bar-invested" style="width:${invPct.toFixed(2)}%"></div>
-      <div class="vc-bar-cash" style="width:${cashPct.toFixed(2)}%"></div>
-    </div>
+    <div class="pc-label">Kâğıtta</div>
+    <div class="pc-value">${fmt(invested, 'TL')}</div>
+    <div class="pc-change">${open.length} pozisyon</div>
   `;
 }
 
